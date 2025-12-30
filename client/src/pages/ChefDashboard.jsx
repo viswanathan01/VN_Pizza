@@ -74,24 +74,73 @@ const ChefDashboard = () => {
                                 </span>
                             </div>
 
-                            <div className="space-y-3 mb-6">
+                            <div className="space-y-4 mb-6">
                                 {order.items.map((item, i) => (
-                                    <div key={i} className="flex gap-2 items-start">
-                                        <div className="w-6 h-6 bg-gray-100 rounded flex items-center justify-center text-xs font-bold shrink-0">
-                                            {item.quantity}x
+                                    <div key={i} className="border-b pb-4 last:border-0">
+                                        <div className="flex gap-2 items-baseline mb-2">
+                                            <span className="w-6 h-6 bg-gray-900 text-white rounded flex items-center justify-center text-xs font-bold shrink-0">
+                                                {item.quantity}x
+                                            </span>
+                                            <span className="font-black text-xl text-gray-900 leading-none">{item.name}</span>
                                         </div>
-                                        <div>
-                                            <p className="font-bold text-gray-900 leading-tight">{item.name}</p>
-                                            {item.snapshot && (
-                                                <p className="text-[10px] text-gray-500 mt-1">
-                                                    {[
-                                                        item.snapshot.base,
-                                                        item.snapshot.sauce,
-                                                        ...(item.snapshot.toppings || []).map(t => t.name)
-                                                    ].filter(Boolean).join(', ')}
-                                                </p>
-                                            )}
-                                        </div>
+
+                                        <p className="text-xs text-gray-400 font-medium mb-3 italic">
+                                            {item.description}
+                                        </p>
+
+                                        {item.snapshot && (
+                                            <div className="bg-gray-50 rounded-lg p-3 space-y-2 text-xs">
+                                                {/* BASE */}
+                                                {item.snapshot.base && (
+                                                    <div className="flex justify-between items-center border-b border-dashed border-gray-200 pb-1">
+                                                        <span className="font-bold text-gray-500 uppercase tracking-wider text-[10px]">Base</span>
+                                                        <span className="font-semibold text-gray-800">
+                                                            {item.snapshot.base.name} <span className="text-gray-400">({item.snapshot.base.qty}g)</span>
+                                                        </span>
+                                                    </div>
+                                                )}
+
+                                                {/* SAUCE */}
+                                                {item.snapshot.sauce && (
+                                                    <div className="flex justify-between items-center border-b border-dashed border-gray-200 pb-1">
+                                                        <span className="font-bold text-gray-500 uppercase tracking-wider text-[10px]">Sauce</span>
+                                                        <span className="font-semibold text-gray-800">
+                                                            {item.snapshot.sauce.name} <span className="text-gray-400">({item.snapshot.sauce.qty}ml)</span>
+                                                        </span>
+                                                    </div>
+                                                )}
+
+                                                {/* CHEESES */}
+                                                {item.snapshot.cheeses?.length > 0 && (
+                                                    <div className="border-b border-dashed border-gray-200 pb-1">
+                                                        <span className="font-bold text-gray-500 uppercase tracking-wider text-[10px] block mb-1">Cheeses</span>
+                                                        <div className="space-y-1">
+                                                            {item.snapshot.cheeses.map((c, idx) => (
+                                                                <div key={idx} className="flex justify-between pl-2">
+                                                                    <span className="font-medium text-gray-800">• {c.name}</span>
+                                                                    <span className="text-gray-400">{c.qty}g</span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* TOPPINGS */}
+                                                {item.snapshot.toppings?.length > 0 && (
+                                                    <div>
+                                                        <span className="font-bold text-gray-500 uppercase tracking-wider text-[10px] block mb-1">Toppings</span>
+                                                        <div className="space-y-1">
+                                                            {item.snapshot.toppings.map((t, idx) => (
+                                                                <div key={idx} className="flex justify-between pl-2">
+                                                                    <span className="font-medium text-gray-800">• {t.name}</span>
+                                                                    <span className="text-gray-400">{t.qty}u</span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
                                 ))}
                             </div>
