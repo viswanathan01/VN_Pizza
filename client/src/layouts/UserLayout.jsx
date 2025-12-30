@@ -111,12 +111,12 @@ const UserLayout = () => {
                                     <LayoutDashboard className="w-4 h-4" />
                                 </Link>
                             )}
-                            {activeRole === 'CHEF' && (
+                            {(activeRole === 'CHEF' || isAdmin) && (
                                 <Link to="/chef" className="p-2.5 rounded-xl hover:bg-gray-100 text-orange-600 transition-colors" title="Kitchen Display">
                                     <Flame className="w-4 h-4" />
                                 </Link>
                             )}
-                            {activeRole === 'DELIVERY' && (
+                            {(activeRole === 'DELIVERY' || isAdmin) && (
                                 <Link to="/delivery" className="p-2.5 rounded-xl hover:bg-gray-100 text-green-600 transition-colors" title="Dispatch Board">
                                     <Truck className="w-4 h-4" />
                                 </Link>
