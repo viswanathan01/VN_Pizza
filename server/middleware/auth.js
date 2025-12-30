@@ -15,7 +15,7 @@ const withMongoUser = async (req, res, next) => {
     }
 
     const clerkUserId = req.auth.userId;
-    let user = await User.findOne({ clerkUserId }).lean();
+    let user = await User.findOne({ clerkUserId });
 
     // Lazy Sync: If user missing in Mongo, fetch from Clerk and create
     if (!user) {

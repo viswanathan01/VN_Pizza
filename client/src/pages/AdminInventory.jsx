@@ -38,8 +38,11 @@ const AdminInventory = () => {
     const [loading, setLoading] = useState(true);
     const { getToken, isLoaded, isSignedIn } = useAuth();
 
-    const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+    const [selectedDate, setSelectedDate] = useState('');
     const [alertFilter, setAlertFilter] = useState(false);
+    const [selectedCategory, setSelectedCategory] = useState('ALL');
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 10;
 
     // Initial filter if navigated from critical alert
     useEffect(() => {
@@ -47,6 +50,11 @@ const AdminInventory = () => {
             setAlertFilter(true);
         }
     }, []);
+
+    // Reset pagination on tab/filter change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [activeTab, selectedDate, selectedCategory]);
 
     const [newItem, setNewItem] = useState({
         name: '',
@@ -132,12 +140,47 @@ const AdminInventory = () => {
 
     const orderedCategories = Object.keys(CATEGORY_MAP); // Maintain consistent order
 
-    if (loading && inventory.length === 0) return (
+    if (loading && inventory.length === 0 && ledger.length === 0 && batches.length === 0) return (
         <div className="flex flex-col items-center justify-center p-20 h-[60vh] text-orange-500">
             <Loader2 className="w-10 h-10 animate-spin mb-4" />
             <p className="text-xs font-bold uppercase tracking-widest text-gray-400">Loading Supply Depot...</p>
         </div>
     );
+
+    // PAGINATION HELPERS
+    const renderPagination = (totalItems) => {
+        const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+        if (totalPages <= 1) return null;
+
+        return (
+            <div className="flex items-center justify-center gap-4 py-6">
+                <button
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="px-3 py-1 rounded bg-gray-100 text-xs font-bold text-gray-600 disabled:opacity-50 hover:bg-gray-200"
+                >
+                    Previous
+                </button>
+                <span className="text-xs font-medium text-gray-400">
+                    Page {currentPage} of {totalPages}
+                </span>
+                <button
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-1 rounded bg-gray-100 text-xs font-bold text-gray-600 disabled:opacity-50 hover:bg-gray-200"
+                >
+                    Next
+                </button>
+            </div>
+        );
+    };
+
+    // Filtered Data Calculations
+    const getFilteredData = (data, dateField) => {
+        const filtered = data.filter(item => !selectedDate || item[dateField].startsWith(selectedDate));
+        const paginated = filtered.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+        return { filtered, paginated };
+    };
 
     return (
         <div className="space-y-10">
@@ -168,7 +211,7 @@ const AdminInventory = () => {
                 </div>
             </div>
 
-            {/* Alert Banner - only show if active or available */}
+            {/* Alert Banner - DEPOT ONLY */}
             {activeTab === 'DEPOT' && (alertFilter || inventory.some(i => i.inventory.currentStock < i.inventory.minThreshold)) && (
                 <div
                     onClick={() => setAlertFilter(!alertFilter)}
@@ -192,23 +235,57 @@ const AdminInventory = () => {
                 </div>
             )}
 
-            {/* Calendar Filter for Batches & Ledger */}
+            {/* Calendar Filter - BATCHES & LEDGER */}
             {(activeTab === 'BATCHES' || activeTab === 'LEDGER') && (
                 <div className="flex justify-end">
-                    <div className="flex items-center gap-2 bg-white border rounded-xl px-4 py-2 shadow-sm">
-                        <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Filter Date:</span>
+                    <div className="flex items-center gap-2 bg-white border rounded-xl px-4 py-2 shadow-sm group hover:border-orange-500 transition-colors">
+                        <span className="text-xs font-bold text-gray-400 uppercase tracking-widest group-hover:text-orange-500">Filter Date:</span>
                         <input
                             type="date"
                             value={selectedDate}
                             onChange={(e) => setSelectedDate(e.target.value)}
-                            className="text-sm font-bold text-gray-900 outline-none"
+                            className="text-sm font-bold text-gray-900 outline-none cursor-pointer"
                         />
+                        {selectedDate && (
+                            <button onClick={() => setSelectedDate('')} className="ml-2 text-red-500 hover:bg-red-50 p-1 rounded-full">
+                                <span className="text-[10px] font-black uppercase">Clear</span>
+                            </button>
+                        )}
                     </div>
                 </div>
             )}
 
             {activeTab === 'DEPOT' && (
-                <div className="space-y-10">
+                <div className="space-y-6">
+                    {/* Category Tabs */}
+                    <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                        <button
+                            onClick={() => setSelectedCategory('ALL')}
+                            className={cn(
+                                "px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all border",
+                                selectedCategory === 'ALL'
+                                    ? "bg-gray-900 text-white border-gray-900"
+                                    : "bg-white text-gray-500 border-gray-200 hover:border-gray-300"
+                            )}
+                        >
+                            ALL ITEMS
+                        </button>
+                        {orderedCategories.map(cat => (
+                            <button
+                                key={cat}
+                                onClick={() => setSelectedCategory(cat)}
+                                className={cn(
+                                    "px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all border",
+                                    selectedCategory === cat
+                                        ? "bg-orange-500 text-white border-orange-500 shadow-lg shadow-orange-500/30"
+                                        : "bg-white text-gray-500 border-gray-200 hover:border-gray-300"
+                                )}
+                            >
+                                {cat.replace('_', ' ')}
+                            </button>
+                        ))}
+                    </div>
+
                     {/* Manual Entry Form */}
                     <div className="card shadow-sm border-orange-100 bg-orange-50/30">
                         <div className="flex items-center gap-3 mb-6">
@@ -254,7 +331,7 @@ const AdminInventory = () => {
 
                     {/* Categorized Inventory Display */}
                     <div className="space-y-8">
-                        {orderedCategories.map(category => {
+                        {(selectedCategory === 'ALL' ? orderedCategories : [selectedCategory]).map(category => {
                             const items = groupedInventory[category];
                             if (!items || items.length === 0) return null;
 
@@ -319,97 +396,105 @@ const AdminInventory = () => {
                 </div>
             )}
 
-            {activeTab === 'LEDGER' && (
-                <div className="card p-0 overflow-hidden shadow-sm">
-                    <table className="app-table">
-                        <thead>
-                            <tr>
-                                <th>Timestamp</th>
-                                <th>Action</th>
-                                <th>Item</th>
-                                <th>Quantity</th>
-                                <th>Source</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {ledger
-                                .filter(log => log.timestamp.startsWith(selectedDate))
-                                .map(log => (
-                                    <tr key={log._id}>
-                                        <td className="text-xs font-mono text-gray-400">{format(new Date(log.timestamp), 'MMM d, HH:mm:ss')}</td>
-                                        <td>
-                                            <span className={cn("status-pill",
-                                                log.action === 'ADD' ? 'bg-green-100 text-green-700' :
-                                                    log.action === 'REMOVE' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
-                                            )}>
-                                                {log.action}
-                                            </span>
-                                        </td>
-                                        <td className="font-semibold text-gray-900">{log.ingredientId?.name || 'N/A'}</td>
-                                        <td className="font-mono text-sm">
-                                            <span className={log.action === 'REMOVE' ? 'text-red-600' : 'text-green-600'}>
-                                                {log.action === 'REMOVE' ? '-' : '+'}{log.quantity}
-                                            </span>
-                                            <span className="text-[10px] text-gray-400 ml-1 uppercase">{log.unit}</span>
-                                        </td>
-                                        <td className="text-xs text-gray-500 italic uppercase">{log.source}</td>
+            {activeTab === 'LEDGER' && (() => {
+                const { filtered, paginated } = getFilteredData(ledger, 'timestamp');
+                return (
+                    <div className="space-y-4">
+                        <div className="card p-0 overflow-hidden shadow-sm">
+                            <table className="app-table">
+                                <thead>
+                                    <tr>
+                                        <th>Timestamp</th>
+                                        <th>Action</th>
+                                        <th>Item</th>
+                                        <th>Quantity</th>
+                                        <th>Source</th>
                                     </tr>
-                                ))}
-                            {ledger.filter(log => log.timestamp.startsWith(selectedDate)).length === 0 && (
-                                <tr>
-                                    <td colSpan="5" className="p-10 text-center text-gray-400 font-bold uppercase text-xs tracking-widest">
-                                        No records for {selectedDate}
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            )}
+                                </thead>
+                                <tbody>
+                                    {paginated.map(log => (
+                                        <tr key={log._id}>
+                                            <td className="text-xs font-mono text-gray-400">{format(new Date(log.timestamp), 'MMM d, HH:mm:ss')}</td>
+                                            <td>
+                                                <span className={cn("status-pill",
+                                                    log.action === 'ADD' ? 'bg-green-100 text-green-700' :
+                                                        log.action === 'REMOVE' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
+                                                )}>
+                                                    {log.action}
+                                                </span>
+                                            </td>
+                                            <td className="font-semibold text-gray-900">{log.ingredientId?.name || 'N/A'}</td>
+                                            <td className="font-mono text-sm">
+                                                <span className={log.action === 'REMOVE' ? 'text-red-600' : 'text-green-600'}>
+                                                    {log.action === 'REMOVE' ? '-' : '+'}{log.quantity}
+                                                </span>
+                                                <span className="text-[10px] text-gray-400 ml-1 uppercase">{log.unit}</span>
+                                            </td>
+                                            <td className="text-xs text-gray-500 italic uppercase">{log.source}</td>
+                                        </tr>
+                                    ))}
+                                    {paginated.length === 0 && (
+                                        <tr>
+                                            <td colSpan="5" className="p-10 text-center text-gray-400 font-bold uppercase text-xs tracking-widest">
+                                                No records {selectedDate ? `for ${selectedDate}` : ''}
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                        {renderPagination(filtered.length)}
+                    </div>
+                );
+            })()}
 
-            {activeTab === 'BATCHES' && (
-                <div className="card p-0 overflow-hidden shadow-sm">
-                    <table className="app-table">
-                        <thead>
-                            <tr>
-                                <th>Batch ID</th>
-                                <th>Material</th>
-                                <th>Quantity</th>
-                                <th>Cost/Unit</th>
-                                <th>Expiry</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {batches
-                                .filter(batch => batch.receivedAt.startsWith(selectedDate))
-                                .map(batch => (
-                                    <tr key={batch._id} className="hover:bg-gray-50/50">
-                                        <td className="font-mono text-xs font-bold text-gray-400">#{batch.batchId}</td>
-                                        <td className="font-bold text-gray-900">{batch.ingredientId?.name || 'Artisan Material'}</td>
-                                        <td className="font-mono text-sm">
-                                            {batch.quantity.toLocaleString()} <span className="text-[10px] text-gray-400 uppercase">{batch.unit}</span>
-                                        </td>
-                                        <td className="font-semibold text-gray-500">₹{batch.costPerUnit}</td>
-                                        <td className="text-xs text-gray-500">
-                                            {batch.expiryDate ? format(new Date(batch.expiryDate), 'MMM d, yyyy') : 'PERISHABLE'}
-                                        </td>
-                                        <td>
-                                            <span className="status-pill bg-green-50 text-green-700">ACTIVE</span>
-                                        </td>
+            {activeTab === 'BATCHES' && (() => {
+                const { filtered, paginated } = getFilteredData(batches, 'receivedAt');
+                return (
+                    <div className="space-y-4">
+                        <div className="card p-0 overflow-hidden shadow-sm">
+                            <table className="app-table">
+                                <thead>
+                                    <tr>
+                                        <th>Batch ID</th>
+                                        <th>Material</th>
+                                        <th>Quantity</th>
+                                        <th>Cost/Unit</th>
+                                        <th>Expiry</th>
+                                        <th>Status</th>
                                     </tr>
-                                ))}
-                            {batches.filter(batch => batch.receivedAt.startsWith(selectedDate)).length === 0 && (
-                                <tr>
-                                    <td colSpan="6" className="p-10 text-center text-gray-400 font-bold uppercase text-xs tracking-widest">
-                                        No batches received on {selectedDate}
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-            )}
+                                </thead>
+                                <tbody>
+                                    {paginated.map(batch => (
+                                        <tr key={batch._id} className="hover:bg-gray-50/50">
+                                            <td className="font-mono text-xs font-bold text-gray-400">#{batch.batchId}</td>
+                                            <td className="font-bold text-gray-900">{batch.ingredientId?.name || 'Artisan Material'}</td>
+                                            <td className="font-mono text-sm">
+                                                {batch.quantity.toLocaleString()} <span className="text-[10px] text-gray-400 uppercase">{batch.unit}</span>
+                                            </td>
+                                            <td className="font-semibold text-gray-500">₹{batch.costPerUnit}</td>
+                                            <td className="text-xs text-gray-500">
+                                                {batch.expiryDate ? format(new Date(batch.expiryDate), 'MMM d, yyyy') : 'PERISHABLE'}
+                                            </td>
+                                            <td>
+                                                <span className="status-pill bg-green-50 text-green-700">ACTIVE</span>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {paginated.length === 0 && (
+                                        <tr>
+                                            <td colSpan="6" className="p-10 text-center text-gray-400 font-bold uppercase text-xs tracking-widest">
+                                                No batches {selectedDate ? `received on ${selectedDate}` : ''}
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                        {renderPagination(filtered.length)}
+                    </div>
+                );
+            })()}
 
             {activeTab === 'SUPPLIERS' && (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

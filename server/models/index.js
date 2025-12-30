@@ -11,7 +11,14 @@ const userSchema = new mongoose.Schema({
   email: { type: String, required: true }, 
   username: { type: String },
   fullName: { type: String },
-  role: { type: String, enum: ['USER', 'ADMIN'], default: 'USER' },
+  role: { type: String, enum: ['USER', 'ADMIN', 'CHEF', 'DELIVERY'], default: 'USER' },
+  contactNumber: { type: String },
+  savedAddress: {
+    label: { type: String },
+    addressLine: { type: String },
+    latitude: { type: Number },
+    longitude: { type: Number }
+  }
 }, { timestamps: true });
 
 // 2. Supplier Schema
@@ -107,23 +114,51 @@ const pizzaPackSchema = new mongoose.Schema({
 pizzaPackSchema.index({ category: 1, isFeatured: 1 });
 
 // 7. Order Schema
+// 7. Order Schema
 const orderSchema = new mongoose.Schema({
   userId: { type: String, required: true },
-  items: [{
+
+  customer: {
     name: { type: String, required: true },
-    description: { type: String },
-    price: { type: Number, required: true },
-    quantity: { type: Number, default: 1 },
-    packId: { type: mongoose.Schema.Types.ObjectId, ref: 'PizzaPack' },
-    snapshot: { type: Object } // Full snapshot of pizza state
-  }],
-  totalPrice: { type: Number, required: true },
-  status: { 
-    type: String, 
-    enum: ['ORDER_RECEIVED', 'IN_KITCHEN', 'OUT_FOR_DELIVERY', 'DELIVERED', 'PAYMENT_FAILED'], 
-    default: 'ORDER_RECEIVED' 
+    contactNumber: { type: String, required: true }
   },
-  contactNumber: { type: String }
+
+  deliveryAddress: {
+    label: { type: String }, // Home, Work, Other
+    addressLine: { type: String, required: true },
+    latitude: { type: Number },
+    longitude: { type: Number }
+  },
+
+  items: [{
+    name: String,
+    description: String,
+    price: Number,
+    quantity: Number,
+    packId: { type: mongoose.Schema.Types.ObjectId, ref: 'PizzaPack' },
+    snapshot: Object
+  }],
+
+  totalPrice: { type: Number, required: true },
+  paymentId: { type: String },
+
+  status: {
+    type: String,
+    enum: [
+      'ORDER_RECEIVED',
+      'IN_KITCHEN',
+      'OUT_FOR_DELIVERY',
+      'DELIVERED',
+      'PAYMENT_FAILED'
+    ],
+    default: 'ORDER_RECEIVED'
+  },
+
+  updatedByRole: {
+    type: String,
+    enum: ['USER', 'CHEF', 'DELIVERY', 'ADMIN']
+  }
+
 }, { timestamps: true });
 
 orderSchema.index({ userId: 1, createdAt: -1 });

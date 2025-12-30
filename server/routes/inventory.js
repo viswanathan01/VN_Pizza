@@ -176,7 +176,7 @@ router.get('/ledger', requireAuth, requireAdmin, async (req, res) => {
     try {
         const logs = await InventoryLedger.find({})
             .sort({ timestamp: -1 })
-            .limit(100)
+            .limit(1000)
             .populate('ingredientId', 'name category')
             .lean();
         res.json(logs);
@@ -220,7 +220,5 @@ router.get('/batches', requireAuth, requireAdmin, async (req, res) => {
         res.status(500).json({ error: 'Failed to fetch batches' });
     }
 });
-
-module.exports = router;
 
 module.exports = router;

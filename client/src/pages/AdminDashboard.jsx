@@ -140,7 +140,7 @@ const AdminDashboard = () => {
                                     <tr key={order._id} className="hover:bg-gray-50/50">
                                         <td className="font-mono text-xs font-bold text-gray-400">#{order._id.slice(-6).toUpperCase()}</td>
                                         <td>
-                                            <div className="font-semibold text-gray-900">{order.userId?.split('_')[1] || 'Guest'}</div>
+                                            <div className="font-semibold text-gray-900">{order.customer?.name || order.userId?.slice(0, 8) || 'Guest'}</div>
                                             <div className="text-[10px] text-gray-400">{format(new Date(order.createdAt), 'h:mm a')}</div>
                                         </td>
                                         <td>

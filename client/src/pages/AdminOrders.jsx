@@ -99,8 +99,8 @@ const AdminOrders = () => {
                                         #{order._id.slice(-8).toUpperCase()}
                                     </td>
                                     <td>
-                                        <div className="font-semibold text-gray-900">{order.userId?.split('_')[1] || 'Guest'}</div>
-                                        <div className="text-[10px] text-gray-500 font-mono uppercase mt-0.5">{order.contactNumber || 'No Contact'}</div>
+                                        <div className="font-semibold text-gray-900">{order.customer?.name || order.userId?.slice(0, 8) || 'Guest'}</div>
+                                        <div className="text-[10px] text-gray-500 font-mono uppercase mt-0.5">{order.customer?.contactNumber || 'No Contact'}</div>
                                     </td>
                                     <td>
                                         <div className="flex -space-x-2">

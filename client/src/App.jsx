@@ -15,6 +15,8 @@ import Cart from './pages/Cart';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminOrders from './pages/AdminOrders';
 import AdminInventory from './pages/AdminInventory';
+import ChefDashboard from './pages/ChefDashboard';
+import DeliveryDashboard from './pages/DeliveryDashboard';
 import SignInPage from './pages/auth/SignInPage';
 import SignUpPage from './pages/auth/SignUpPage';
 
@@ -89,6 +91,10 @@ function App() {
           <Route path="/cart" element={<ProtectedRoute><Cart /></ProtectedRoute>} />
           <Route path="/orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
         </Route>
+
+        {/* Special Role Dashboards */}
+        <Route path="/chef" element={<ProtectedRoute><ChefDashboard /></ProtectedRoute>} />
+        <Route path="/delivery" element={<ProtectedRoute><DeliveryDashboard /></ProtectedRoute>} />
 
         {/* Admin Routes (Protected) */}
         <Route path="/admin" element={<ProtectedRoute adminOnly><AdminLayout /></ProtectedRoute>}>

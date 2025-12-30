@@ -1,6 +1,6 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { UserButton, SignInButton } from '@clerk/clerk-react';
-import { ShoppingCart, Pizza, ClipboardList, Sun, Moon, PlusCircle, LayoutDashboard } from 'lucide-react';
+import { ShoppingCart, Pizza, ClipboardList, Sun, Moon, PlusCircle, LayoutDashboard, Flame, Truck } from 'lucide-react';
 import { useEffect } from 'react';
 import { cn } from '../utils/cn';
 import { useTheme } from '../context/ThemeContext';
@@ -34,13 +34,21 @@ const UserLayout = () => {
         );
     }
 
-    const navItems = [
+    // Role-based Navigation
+    let navItems = [
         { name: 'Menu', href: '/menu', icon: Pizza },
         { name: 'Pizza Builder', href: '/builder', icon: PlusCircle },
         { name: 'My Orders', href: '/orders', icon: ClipboardList },
     ];
 
+    if (role === 'CHEF') {
+        navItems = [{ name: 'Kitchen Display', href: '/chef', icon: Flame }];
+    } else if (role === 'DELIVERY') {
+        navItems = [{ name: 'Dispatch Board', href: '/delivery', icon: Truck }];
+    }
+
     const isAdmin = role === 'ADMIN';
+    const isSpecialRole = role === 'CHEF' || role === 'DELIVERY';
 
     return (
         <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] transition-colors duration-300">
@@ -84,18 +92,31 @@ const UserLayout = () => {
                                 {theme === 'DARK' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
                             </button>
 
-                            <Link to="/cart" className="relative p-2.5 rounded-xl hover:bg-gray-100 text-gray-500 transition-colors">
-                                <ShoppingCart className="w-4 h-4" />
-                                {cartItems.length > 0 && (
-                                    <span className="absolute top-1 right-1 w-4 h-4 bg-orange-500 text-[8px] font-black text-white rounded-full flex items-center justify-center border-2 border-white">
-                                        {cartItems.length}
-                                    </span>
-                                )}
-                            </Link>
+                            {/* Cart - Hide for Chef/Delivery */}
+                            {!isSpecialRole && (
+                                <Link to="/cart" className="relative p-2.5 rounded-xl hover:bg-gray-100 text-gray-500 transition-colors">
+                                    <ShoppingCart className="w-4 h-4" />
+                                    {cartItems.length > 0 && (
+                                        <span className="absolute top-1 right-1 w-4 h-4 bg-orange-500 text-[8px] font-black text-white rounded-full flex items-center justify-center border-2 border-white">
+                                            {cartItems.length}
+                                        </span>
+                                    )}
+                                </Link>
+                            )}
 
                             {isAdmin && (
                                 <Link to="/admin" className="p-2.5 rounded-xl hover:bg-gray-100 text-orange-600 transition-colors" title="Admin Panel">
                                     <LayoutDashboard className="w-4 h-4" />
+                                </Link>
+                            )}
+                            {role === 'CHEF' && (
+                                <Link to="/chef" className="p-2.5 rounded-xl hover:bg-gray-100 text-orange-600 transition-colors" title="Kitchen Display">
+                                    <Flame className="w-4 h-4" />
+                                </Link>
+                            )}
+                            {role === 'DELIVERY' && (
+                                <Link to="/delivery" className="p-2.5 rounded-xl hover:bg-gray-100 text-green-600 transition-colors" title="Dispatch Board">
+                                    <Truck className="w-4 h-4" />
                                 </Link>
                             )}
                         </div>
