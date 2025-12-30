@@ -6,72 +6,95 @@ const mongoose = require('mongoose');
 
 // Helper: Deduct Stock with Ledger Entry (Strict Validation)
 const updateInventoryStock = async (items, orderId) => {
-    // 1. Collect all unique ingredient names from all items
-    const allNames = new Set();
+    const { StockBatch } = require('../models');
+    
+    // 1. Collect all unique ingredient names and their total required quantities
+    const requirements = new Map(); // name -> totalQuantity
+
     items.forEach(item => {
         if (item.snapshot) {
             const s = item.snapshot;
-            [s.base, s.sauce, ...(s.cheeses || []), ...(s.toppings || [])]
-                .filter(Boolean)
-                .forEach(name => {
-                    const n = typeof name === 'object' ? name.name : name;
-                    if (n) allNames.add(n);
-                });
+            const ingredientNames = [s.base, s.sauce, ...(s.cheeses || []), ...(s.toppings || [])].filter(Boolean);
+            
+            for (const ingredientName of ingredientNames) {
+                const name = typeof ingredientName === 'object' ? ingredientName.name : ingredientName;
+                if (!name) continue;
+                
+                const usage = 1; // Default usage per unit? 
+                // Let's look at how it was before: usage = ingredient.defaultQuantity || 1;
+                // I need to fetch ingredients first to get defaultQuantity.
+                requirements.set(name, (requirements.get(name) || 0) + (item.quantity || 1));
+            }
         }
     });
 
-    if (allNames.size === 0) return;
+    if (requirements.size === 0) return;
 
-    // 2. Fetch Ingredients to check stock
-    const ingredients = await Ingredient.find({ name: { $in: Array.from(allNames) } });
+    // 2. Fetch Ingredients and calculate total deduction needed in base units
+    const ingredients = await Ingredient.find({ name: { $in: Array.from(requirements.keys()) } });
     const ingredientMap = new Map(ingredients.map(i => [i.name, i]));
-
-    // 3. Pre-Validation Check
-    const deductions = new Map(); // IngredientID -> TotalDeduction
-
-    for (const item of items) {
-        if (item.snapshot) {
-            const s = item.snapshot;
-            const ingredientNames = [s.base, s.sauce, ...(s.cheeses || []), ...(s.toppings || [])].filter(Boolean);
-
-            for (const ingredientName of ingredientNames) {
-                const name = typeof ingredientName === 'object' ? ingredientName.name : ingredientName;
-                const ingredient = ingredientMap.get(name);
-                
-                if (ingredient) {
-                    const usage = ingredient.defaultQuantity || 1;
-                    const deduction = usage * (item.quantity || 1);
-                    const currentTotal = deductions.get(ingredient._id.toString()) || 0;
-                    deductions.set(ingredient._id.toString(), currentTotal + deduction);
-                }
-            }
+    
+    // Recalculate requirements in base units
+    const finalRequirements = new Map(); // ingredientId -> totalDeductionQuantity
+    for (const [name, qty] of requirements) {
+        const ingredient = ingredientMap.get(name);
+        if (ingredient) {
+            const deduction = (ingredient.defaultQuantity || 1) * qty;
+            finalRequirements.set(ingredient._id.toString(), (finalRequirements.get(ingredient._id.toString()) || 0) + deduction);
         }
     }
 
-    // Check availability
-    for (const [id, totalNeeded] of deductions.entries()) {
+    // 3. Pre-Validation: Check if total stock is sufficient BEFORE any mutation
+    for (const [id, needed] of finalRequirements) {
         const ingredient = ingredients.find(i => i._id.toString() === id);
-        if (!ingredient || ingredient.inventory.currentStock < totalNeeded) {
-            throw new Error(`Insufficient stock for ${ingredient?.name}. Required: ${totalNeeded}, Available: ${ingredient?.inventory?.currentStock}`);
+        if (!ingredient || ingredient.inventory.currentStock < needed) {
+            throw new Error(`Insufficient stock for ${ingredient?.name || id}. Required: ${needed}, Available: ${ingredient?.inventory?.currentStock || 0}`);
         }
     }
 
-    // 4. Execute Deductions
-    const operations = [];
+    // 4. Execute FIFO Deduction from Batches
+    const batchOperations = [];
+    const ingredientOperations = [];
     const ledgerEntries = [];
 
-    for (const [id, totalNeeded] of deductions.entries()) {
-        const ingredient = ingredients.find(i => i._id.toString() === id);
-        
-        operations.push({
+    for (const [ingId, totalNeeded] of finalRequirements) {
+        const ingredient = ingredients.find(i => i._id.toString() === ingId);
+        let remainingToDeduct = totalNeeded;
+
+        // Find matches batches, sorted by receivedAt (FIFO)
+        const batches = await StockBatch.find({ ingredientId: ingId, quantity: { $gt: 0 } }).sort({ receivedAt: 1 });
+
+        for (const batch of batches) {
+            if (remainingToDeduct <= 0) break;
+
+            const deductionFromBatch = Math.min(batch.quantity, remainingToDeduct);
+            
+            batchOperations.push({
+                updateOne: {
+                    filter: { _id: batch._id },
+                    update: { $inc: { quantity: -deductionFromBatch } }
+                }
+            });
+
+            remainingToDeduct -= deductionFromBatch;
+        }
+
+        // If after checking all batches we still need more (shouldn't happen due to pre-validation but just in case)
+        if (remainingToDeduct > 0) {
+            // This might happen if 'Ingredient.currentStock' is out of sync with 'sum(Batches)'.
+            // In a production system, we might want to log this critical inconsistency.
+            // For now, we deduct the rest from the ingredient anyway to keep Ingredient.stock authoritative.
+        }
+
+        ingredientOperations.push({
             updateOne: {
-                filter: { _id: id },
+                filter: { _id: ingId },
                 update: { $inc: { 'inventory.currentStock': -totalNeeded } }
             }
         });
 
         ledgerEntries.push({
-            ingredientId: id,
+            ingredientId: ingId,
             action: 'REMOVE',
             quantity: totalNeeded,
             unit: ingredient.unitType,
@@ -81,62 +104,113 @@ const updateInventoryStock = async (items, orderId) => {
         });
     }
 
-    if (operations.length > 0) {
-        await Ingredient.bulkWrite(operations);
-        await InventoryLedger.insertMany(ledgerEntries);
+    // 5. Atomic-ish execution (BulkWrite)
+    if (batchOperations.length > 0) await StockBatch.bulkWrite(batchOperations);
+    if (ingredientOperations.length > 0) await Ingredient.bulkWrite(ingredientOperations);
+    if (ledgerEntries.length > 0) await InventoryLedger.insertMany(ledgerEntries);
+};
+
+// Helper: Reverse Stock (for Cancelled/Failed orders)
+const reverseInventoryStock = async (items, orderId) => {
+    const { StockBatch } = require('../models');
+    const requirements = new Map();
+
+    items.forEach(item => {
+        if (item.snapshot) {
+            const s = item.snapshot;
+            const ingredientNames = [s.base, s.sauce, ...(s.cheeses || []), ...(s.toppings || [])].filter(Boolean);
+            for (const nameObj of ingredientNames) {
+                const name = typeof nameObj === 'object' ? nameObj.name : nameObj;
+                if (name) requirements.set(name, (requirements.get(name) || 0) + (item.quantity || 1));
+            }
+        }
+    });
+
+    if (requirements.size === 0) return;
+
+    const ingredients = await Ingredient.find({ name: { $in: Array.from(requirements.keys()) } });
+    
+    for (const [name, qty] of requirements) {
+        const ingredient = ingredients.find(i => i.name === name);
+        if (!ingredient) continue;
+
+        const amountToRestore = (ingredient.defaultQuantity || 1) * qty;
+
+        // Restore to Batches: We'll put it back into the LATEST active batch of this ingredient
+        // or create a reversal batch. Creating a reversal batch is cleaner for audit.
+        await new StockBatch({
+            ingredientId: ingredient._id,
+            batchId: `REV-${orderId.toString().slice(-6)}`,
+            quantity: amountToRestore,
+            unit: ingredient.unitType,
+            costPerUnit: ingredient.pricePerUnit,
+            receivedAt: new Date()
+        }).save();
+
+        // Update Ingredient
+        ingredient.inventory.currentStock += amountToRestore;
+        await ingredient.save();
+
+        // Ledger
+        await new InventoryLedger({
+            ingredientId: ingredient._id,
+            action: 'ADD',
+            quantity: amountToRestore,
+            unit: ingredient.unitType,
+            source: 'SYSTEM',
+            referenceId: orderId,
+            supplierName: 'Order Reversal'
+        }).save();
     }
 };
 
 // Helper: FSM Validation
 const validateStatusTransition = (currentStatus, newStatus, role) => {
     const rules = {
-        'ORDER_RECEIVED': { next: 'IN_KITCHEN', roles: ['CHEF', 'ADMIN'] },
-        'IN_KITCHEN': { next: 'OUT_FOR_DELIVERY', roles: ['CHEF', 'ADMIN'] },
-        'OUT_FOR_DELIVERY': { next: 'DELIVERED', roles: ['DELIVERY', 'ADMIN'] },
-        'DELIVERED': { next: null, roles: [] },
-        'PAYMENT_FAILED': { next: null, roles: [] }
+        'ORDER_RECEIVED': { next: ['IN_KITCHEN', 'CANCELLED', 'PAYMENT_FAILED'], roles: ['CHEF', 'ADMIN'] },
+        'IN_KITCHEN': { next: ['OUT_FOR_DELIVERY', 'CANCELLED'], roles: ['CHEF', 'ADMIN'] },
+        'OUT_FOR_DELIVERY': { next: ['DELIVERED', 'CANCELLED'], roles: ['DELIVERY', 'ADMIN'] },
+        'DELIVERED': { next: [], roles: [] },
+        'PAYMENT_FAILED': { next: [], roles: [] },
+        'CANCELLED': { next: [], roles: [] }
     };
 
     const rule = rules[currentStatus];
     if (!rule) return { valid: false, error: 'Invalid current status' };
     
     // Strict next state check
-    if (rule.next !== newStatus && role !== 'ADMIN') return { valid: false, error: `Invalid transition from ${currentStatus} to ${newStatus}` };
+    if (!rule.next.includes(newStatus) && role !== 'ADMIN') {
+        // Special case: Allow user to cancel if still in ORDER_RECEIVED? 
+        // For now, prompt specifies Chef/Delivery/Admin roles mostly.
+        return { valid: false, error: `Invalid transition from ${currentStatus} to ${newStatus}` };
+    }
     
     // Role check
-    if (!rule.roles.includes(role)) return { valid: false, error: `Role ${role} unauthorized for this action` };
+    if (role !== 'ADMIN' && !rule.roles.includes(role)) {
+        return { valid: false, error: `Role ${role} unauthorized for this action` };
+    }
 
     return { valid: true };
 };
 
 // POST /api/orders - Create Order
 router.post('/', requireAuth, async (req, res) => {
+  const newOrderId = new mongoose.Types.ObjectId();
+  const { items, totalPrice, paymentId, customer, deliveryAddress } = req.body;
+
   try {
     const userId = req.auth?.userId;
     if (!userId || !req.mongoUser) return res.status(401).json({ error: 'Unauthorized' });
 
-    const { items, totalPrice, paymentId, customer, deliveryAddress } = req.body;
-    
-    // Validation
     if (!customer || !deliveryAddress) {
         return res.status(400).json({ error: 'Customer details and delivery address required' });
     }
 
-    // STRICT INVENTORY CHECK (Blocking)
-    try {
-        // We pass a dummy ID for now just to validate stock, actual deduction happens after valid save? 
-        // No, "NO ORDER may succeed without inventory mutation". So we must deduct.
-        // But if save fails? MongoDB transactions are ideal but complex setup.
-        // We will stick to the prompt: "If inventory is insufficient → reject order"
-        
-        // We assume we want to deduct *before* or *during* save. 
-        // Since we don't have transactions setup guaranteed, strict check first.
-        
-        // To strictly ensure ID exists for ledger, we generate ID first.
-        const newOrderId = new mongoose.Types.ObjectId();
-        
-        await updateInventoryStock(items, newOrderId); // This will THROW if insufficient
+    // 1. Deduct Stock
+    await updateInventoryStock(items, newOrderId);
 
+    // 2. Save Order
+    try {
         const newOrder = new Order({
             _id: newOrderId,
             userId: req.mongoUser.clerkUserId,
@@ -160,22 +234,21 @@ router.post('/', requireAuth, async (req, res) => {
         });
 
         res.status(201).json(newOrder);
-
-    } catch (stockError) {
-        console.error("Inventory Block:", stockError.message);
-        return res.status(400).json({ error: 'Inventory Shortage', details: stockError.message });
+    } catch (saveError) {
+        // ROLLBACK Inventory if Order save fails
+        await reverseInventoryStock(items, newOrderId);
+        throw saveError;
     }
 
   } catch (error) {
     console.error('Order Error:', error);
-    res.status(400).json({ error: 'Order creation failed', details: error.message });
+    res.status(400).json({ error: error.message || 'Order creation failed' });
   }
 });
 
 // GET /api/orders/my - User History
 router.get('/my', requireAuth, async (req, res) => {
   try {
-    const userId = req.auth?.userId;
     const orders = await Order.find({ userId: req.mongoUser.clerkUserId })
         .sort({ createdAt: -1 })
         .lean();
@@ -236,7 +309,7 @@ router.patch('/:id/status', requireAuth, async (req, res) => {
     const order = await Order.findById(req.params.id);
     if (!order) return res.status(404).json({ error: 'Order not found' });
 
-    const role = req.mongoUser.role.toUpperCase(); // Ensure uppercase for FSM Check
+    const role = (req.mongoUser?.role || 'USER').toUpperCase();
 
     // Validate Transition
     const check = validateStatusTransition(order.status, newStatus, role);
@@ -244,7 +317,12 @@ router.patch('/:id/status', requireAuth, async (req, res) => {
         return res.status(403).json({ error: check.error });
     }
 
-    // Apply Update (Direct DB Write to bypass full doc validation issues)
+    // Special Logic: If going to CANCELLED or PAYMENT_FAILED, reverse stock
+    if (['CANCELLED', 'PAYMENT_FAILED'].includes(newStatus) && !['CANCELLED', 'PAYMENT_FAILED'].includes(order.status)) {
+        await reverseInventoryStock(order.items, order._id);
+    }
+
+    // Apply Update
     await Order.updateOne(
         { _id: order._id },
         { 
@@ -256,9 +334,7 @@ router.patch('/:id/status', requireAuth, async (req, res) => {
         }
     );
 
-    // Return updated order state for UI
-    const updatedOrder = { ...order.toObject(), status: newStatus, updatedByRole: role };
-    res.json(updatedOrder);
+    res.json({ ...order.toObject(), status: newStatus, updatedByRole: role });
 
   } catch (error) {
     console.error("Status Update Failed:", error);

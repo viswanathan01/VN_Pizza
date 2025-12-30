@@ -26,10 +26,7 @@ const supplierSchema = new mongoose.Schema({
   name: { type: String, required: true },
   contactEmail: { type: String },
   contactPhone: { type: String },
-  suppliedCategories: [{ 
-    type: String, 
-    enum: ['BASE', 'SAUCE', 'CHEESE', 'VEG_TOPPING', 'MEAT_TOPPING', 'HERB', 'SPICE', 'EXTRA'] 
-  }],
+  suppliedCategories: [{ type: String }],
   reliabilityScore: { type: Number, default: 5 },
   isActive: { type: Boolean, default: true }
 }, { timestamps: true });
@@ -37,11 +34,7 @@ const supplierSchema = new mongoose.Schema({
 // 3. Ingredient Schema (Strictly Pizza-Related)
 const ingredientSchema = new mongoose.Schema({
   name: { type: String, required: true, unique: true },
-  category: { 
-    type: String, 
-    required: true, 
-    enum: ['BASE', 'SAUCE', 'CHEESE', 'VEG_TOPPING', 'MEAT_TOPPING', 'HERB', 'SPICE', 'EXTRA'] 
-  },
+  category: { type: String, required: true },
   unitType: { 
     type: String, 
     enum: ['GRAM', 'ML', 'COUNT'], 
@@ -149,7 +142,8 @@ const orderSchema = new mongoose.Schema({
       'IN_KITCHEN',
       'OUT_FOR_DELIVERY',
       'DELIVERED',
-      'PAYMENT_FAILED'
+      'PAYMENT_FAILED',
+      'CANCELLED'
     ],
     default: 'ORDER_RECEIVED'
   },
