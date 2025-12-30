@@ -74,7 +74,7 @@ const inventoryLedgerSchema = new mongoose.Schema({
   action: { type: String, enum: ['ADD', 'REMOVE', 'ADJUST'], required: true },
   quantity: { type: Number, required: true },
   unit: String,
-  source: { type: String, enum: ['MANUAL', 'ORDER', 'SYSTEM'], required: true },
+  source: { type: String, enum: ['MANUAL', 'ORDER', 'SYSTEM', 'ORDER_CANCEL'], required: true },
   referenceId: String,
   supplierName: String,
   timestamp: { type: Date, default: Date.now }
@@ -146,6 +146,13 @@ const orderSchema = new mongoose.Schema({
       'CANCELLED'
     ],
     default: 'ORDER_RECEIVED'
+  },
+
+  cancellation: {
+    reason: String,
+    customNote: String,
+    cancelledAt: Date,
+    cancelledBy: { type: String, enum: ['USER', 'ADMIN', 'SYSTEM'], default: 'USER' }
   },
 
   updatedByRole: {

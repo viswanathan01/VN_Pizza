@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from '../api/axios';
-import { Loader2, Package, Truck, CheckCircle2, Clock, Receipt, RefreshCcw, ChefHat, Sparkles } from 'lucide-react';
+import { Loader2, Package, Truck, CheckCircle2, Clock, Receipt, RefreshCcw, ChefHat, Sparkles, XCircle, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '../utils/cn';
 import { motion } from 'framer-motion';
@@ -11,6 +11,7 @@ import { useAuthStore } from '../hooks/useAuthStore';
 const Orders = () => {
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [cancellingOrder, setCancellingOrder] = useState(null);
     const { getToken, isLoaded, isSignedIn } = useAuthStore();
     const navigate = useNavigate();
 
@@ -106,10 +107,24 @@ const Orders = () => {
                             {/* Timeline Stepper */}
                             <div className="grid grid-cols-4 relative">
                                 <div className="absolute top-6 left-0 right-0 h-0.5 bg-gray-100 -z-0" />
-                                <TimelineStep status="ORDER_RECEIVED" current={order.status} label="Received" icon={Package} />
-                                <TimelineStep status="IN_KITCHEN" current={order.status} label="In Kitchen" icon={ChefHat} />
-                                <TimelineStep status="OUT_FOR_DELIVERY" current={order.status} label="Out for Delivery" icon={Truck} />
-                                <TimelineStep status="DELIVERED" current={order.status} label="Delivered" icon={CheckCircle2} />
+                                {order.status === 'CANCELLED' ? (
+                                    <div className="col-span-4 flex flex-col items-center justify-center py-4 bg-red-50 rounded-xl border border-red-100">
+                                        <div className="flex items-center gap-2 text-red-600 mb-1">
+                                            <XCircle className="w-5 h-5" />
+                                            <span className="font-bold uppercase tracking-widest text-xs">Order Cancelled</span>
+                                        </div>
+                                        <p className="text-xs text-red-500 font-medium">
+                                            Reason: {order.cancellation?.reason || 'Not specified'}
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <TimelineStep status="ORDER_RECEIVED" current={order.status} label="Received" icon={Package} />
+                                        <TimelineStep status="IN_KITCHEN" current={order.status} label="In Kitchen" icon={ChefHat} />
+                                        <TimelineStep status="OUT_FOR_DELIVERY" current={order.status} label="Out for Delivery" icon={Truck} />
+                                        <TimelineStep status="DELIVERED" current={order.status} label="Delivered" icon={CheckCircle2} />
+                                    </>
+                                )}
                             </div>
                         </div>
 
@@ -129,9 +144,33 @@ const Orders = () => {
                                 </div>
                             ))}
                         </div>
+
+                        {/* Cancellation Control */}
+                        {['ORDER_RECEIVED', 'IN_KITCHEN'].includes(order.status) && (
+                            <div className="p-4 bg-white border-t flex justify-end">
+                                <button
+                                    onClick={() => setCancellingOrder(order)}
+                                    className="text-xs font-bold text-gray-400 hover:text-red-600 flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-red-50 transition-colors uppercase tracking-widest"
+                                >
+                                    Cancel Order
+                                </button>
+                            </div>
+                        )}
                     </motion.div>
                 ))}
             </div>
+
+            {/* Cancellation Modal */}
+            {cancellingOrder && (
+                <CancelOrderModal
+                    order={cancellingOrder}
+                    onClose={() => setCancellingOrder(null)}
+                    onSuccess={() => {
+                        fetchOrders();
+                        setCancellingOrder(null);
+                    }}
+                />
+            )}
         </div>
     );
 };
@@ -159,5 +198,90 @@ const TimelineStep = ({ status, current, label, icon: Icon }) => {
         </div>
     );
 }
+
+const CancelOrderModal = ({ order, onClose, onSuccess }) => {
+    const [reason, setReason] = useState('Changed my mind');
+    const [customNote, setCustomNote] = useState('');
+    const [loading, setLoading] = useState(false);
+    const { getToken } = useAuthStore();
+    // Use toast from parent context or import if needed. Assuming toast works globally or handled by errors.
+    // Ideally we import react-hot-toast here but keeping minimal imports as per snippet.
+    // Wait, need to add import at top if distinct file, but this is same file.
+
+    const handleCancel = async () => {
+        if (!confirm("Are you sure you want to cancel this order? This action cannot be undone.")) return;
+        setLoading(true);
+        try {
+            const token = await getToken();
+            await axios.post(`/orders/${order._id}/cancel`, { reason, customNote }, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            onSuccess(); // Triggers refresh
+        } catch (err) {
+            console.error(err);
+            alert("Failed to cancel order: " + (err.response?.data?.error || err.message));
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+            <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
+                <div className="p-6 border-b bg-gray-50">
+                    <h3 className="text-lg font-bold text-gray-900">Cancel Order #{order._id.slice(-6).toUpperCase()}</h3>
+                    <p className="text-xs text-gray-500 mt-1">Please tell us why you're cancelling.</p>
+                </div>
+                <div className="p-6 space-y-4">
+                    <div>
+                        <label className="text-xs font-bold text-gray-500 uppercase block mb-2">Reason</label>
+                        <select
+                            className="w-full px-4 py-3 rounded-xl border bg-white outline-none focus:ring-2 focus:ring-orange-500 text-sm font-medium"
+                            value={reason}
+                            onChange={(e) => setReason(e.target.value)}
+                        >
+                            {['Changed my mind', 'Ordered by mistake', 'Delivery taking too long', 'Price issue', 'Found an alternative', 'Other'].map(r => (
+                                <option key={r} value={r}>{r}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="text-xs font-bold text-gray-500 uppercase block mb-2">Additional Note (Optional)</label>
+                        <textarea
+                            className="w-full px-4 py-3 rounded-xl border bg-white outline-none focus:ring-2 focus:ring-orange-500 text-sm"
+                            rows="3"
+                            placeholder="Any details you'd like to add..."
+                            value={customNote}
+                            onChange={(e) => setCustomNote(e.target.value)}
+                        />
+                    </div>
+                    <div className="bg-orange-50 p-4 rounded-xl border border-orange-100 flex gap-3 items-start">
+                        <AlertTriangle className="w-5 h-5 text-orange-600 shrink-0" />
+                        <p className="text-xs text-orange-700 leading-relaxed">
+                            <strong>Warning:</strong> Cancellation is permanent. If you paid online, the refund process will be initiated automatically to your original payment method within 5-7 business days.
+                        </p>
+                    </div>
+                </div>
+                <div className="p-4 border-t flex items-center justify-end gap-3 bg-gray-50">
+                    <button
+                        onClick={onClose}
+                        disabled={loading}
+                        className="px-4 py-2 rounded-xl text-sm font-bold text-gray-500 hover:bg-gray-200 disabled:opacity-50"
+                    >
+                        Keep Order
+                    </button>
+                    <button
+                        onClick={handleCancel}
+                        disabled={loading}
+                        className="px-6 py-2 rounded-xl text-sm font-bold bg-red-600 text-white hover:bg-red-700 shadow-lg shadow-red-500/30 disabled:opacity-50 flex items-center gap-2"
+                    >
+                        {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+                        {loading ? 'Cancelling...' : 'Confirm Cancellation'}
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 export default Orders;

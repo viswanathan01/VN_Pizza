@@ -157,9 +157,9 @@ const reverseInventoryStock = async (items, orderId) => {
             action: 'ADD',
             quantity: amountToRestore,
             unit: ingredient.unitType,
-            source: 'SYSTEM',
+            source: 'ORDER_CANCEL',
             referenceId: orderId,
-            supplierName: 'Order Reversal'
+            supplierName: 'Order Cancellation' // Or reason if passed down, but keep simple for helper
         }).save();
     }
 };
@@ -178,6 +178,8 @@ const validateStatusTransition = (currentStatus, newStatus, role) => {
     const rule = rules[currentStatus];
     if (!rule) return { valid: false, error: 'Invalid current status' };
     
+    if (currentStatus === 'CANCELLED') return { valid: false, error: 'Order is already cancelled' };
+
     // Strict next state check
     if (!rule.next.includes(newStatus) && role !== 'ADMIN') {
         // Special case: Allow user to cancel if still in ORDER_RECEIVED? 
@@ -244,6 +246,63 @@ router.post('/', requireAuth, async (req, res) => {
     console.error('Order Error:', error);
     res.status(400).json({ error: error.message || 'Order creation failed' });
   }
+});
+
+// POST /api/orders/:id/cancel - User Cancellation
+router.post('/:id/cancel', requireAuth, async (req, res) => {
+    try {
+        const { reason, customNote } = req.body;
+        if (!reason) return res.status(400).json({ error: 'Cancellation reason is required' });
+
+        const order = await Order.findById(req.params.id);
+        if (!order) return res.status(404).json({ error: 'Order not found' });
+
+        const userId = req.mongoUser.clerkUserId;
+        const role = req.mongoUser.role;
+
+        // 1. Ownership / Permission Check
+        if (order.userId !== userId && role !== 'ADMIN') {
+            return res.status(403).json({ error: 'Unauthorized to cancel this order' });
+        }
+
+        // 2. Status Eligibility Check
+        // Allow cancellation only if NOT Out for Delivery or Finalized
+        const cancellable = ['ORDER_RECEIVED', 'IN_KITCHEN', 'PAYMENT_FAILED'];
+        
+        if (!cancellable.includes(order.status) && role !== 'ADMIN') {
+             // If Admin, they can cancel almost anything except maybe delivered? Admin power override.
+             // But strictly speaking, if it's Out For Delivery, physically cancelling is hard.
+             // Let's enforce logical limits: if Delivered, NO.
+             if (order.status === 'DELIVERED') return res.status(400).json({ error: 'Cannot cancel delivered order' });
+             if (order.status === 'OUT_FOR_DELIVERY' && role !== 'ADMIN') return res.status(400).json({ error: 'Order is already out for delivery' });
+        } else if (!cancellable.includes(order.status)) {
+             return res.status(400).json({ error: `Cannot cancel order in status: ${order.status}` });
+        }
+
+        // 3. Double-Check it's not already cancelled
+        if (order.status === 'CANCELLED') return res.status(400).json({ error: 'Order is already cancelled' });
+
+        // 4. Execute Inventory Reversal
+        await reverseInventoryStock(order.items, order._id);
+
+        // 5. Update Order
+        order.status = 'CANCELLED';
+        order.cancellation = {
+            reason,
+            customNote,
+            cancelledAt: new Date(),
+            cancelledBy: role === 'ADMIN' ? 'ADMIN' : 'USER'
+        };
+        order.updatedByRole = role === 'ADMIN' ? 'ADMIN' : 'USER'; // To track who effectively touched it last
+
+        await order.save();
+
+        res.json(order);
+
+    } catch (error) {
+        console.error("Cancellation Failed:", error);
+        res.status(500).json({ error: 'Cancellation failed', details: error.message });
+    }
 });
 
 // GET /api/orders/my - User History
