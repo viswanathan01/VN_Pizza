@@ -9,21 +9,28 @@ import { motion } from 'framer-motion';
 import { useAuthStore } from '../hooks/useAuthStore';
 import { useCartStore } from '../hooks/useCartStore';
 import { useMenuStore } from '../hooks/useMenuStore';
+import { useProfileStore } from '../hooks/useProfileStore';
 
 const UserLayout = () => {
     const { pathname } = useLocation();
-    const { isLoaded, isSignedIn, user, role } = useAuthStore();
+    const { isLoaded, isSignedIn, user, role: authRole, getToken } = useAuthStore();
     const { items: cartItems, loadCart } = useCartStore();
     const { loadPacks } = useMenuStore();
     const { theme, toggleTheme } = useTheme();
+    const { profile, fetchProfile } = useProfileStore();
 
     useEffect(() => {
-        if (isLoaded) {
-            loadPacks();
-            if (isSignedIn) {
-                loadCart();
+        const init = async () => {
+            if (isLoaded) {
+                loadPacks();
+                if (isSignedIn) {
+                    loadCart();
+                    const token = await getToken();
+                    if (token) fetchProfile(token);
+                }
             }
-        }
+        };
+        init();
     }, [isLoaded, isSignedIn]);
 
     if (!isLoaded) {
@@ -35,20 +42,18 @@ const UserLayout = () => {
     }
 
     // Role-based Navigation
-    let navItems = [
+    // Keep standard nav items for everyone, as per user request
+    const navItems = [
         { name: 'Menu', href: '/menu', icon: Pizza },
         { name: 'Pizza Builder', href: '/builder', icon: PlusCircle },
         { name: 'My Orders', href: '/orders', icon: ClipboardList },
     ];
 
-    if (role === 'CHEF') {
-        navItems = [{ name: 'Kitchen Display', href: '/chef', icon: Flame }];
-    } else if (role === 'DELIVERY') {
-        navItems = [{ name: 'Dispatch Board', href: '/delivery', icon: Truck }];
-    }
+    // Priority: Backend Profile Role > Clerk Metadata Role
+    const activeRole = profile?.role || authRole;
 
-    const isAdmin = role === 'ADMIN';
-    const isSpecialRole = role === 'CHEF' || role === 'DELIVERY';
+    const isAdmin = activeRole === 'ADMIN';
+    const isSpecialRole = activeRole === 'CHEF' || activeRole === 'DELIVERY';
 
     return (
         <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] transition-colors duration-300">
@@ -92,29 +97,26 @@ const UserLayout = () => {
                                 {theme === 'DARK' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
                             </button>
 
-                            {/* Cart - Hide for Chef/Delivery */}
-                            {!isSpecialRole && (
-                                <Link to="/cart" className="relative p-2.5 rounded-xl hover:bg-gray-100 text-gray-500 transition-colors">
-                                    <ShoppingCart className="w-4 h-4" />
-                                    {cartItems.length > 0 && (
-                                        <span className="absolute top-1 right-1 w-4 h-4 bg-orange-500 text-[8px] font-black text-white rounded-full flex items-center justify-center border-2 border-white">
-                                            {cartItems.length}
-                                        </span>
-                                    )}
-                                </Link>
-                            )}
+                            <Link to="/cart" className="relative p-2.5 rounded-xl hover:bg-gray-100 text-gray-500 transition-colors">
+                                <ShoppingCart className="w-4 h-4" />
+                                {cartItems.length > 0 && (
+                                    <span className="absolute top-1 right-1 w-4 h-4 bg-orange-500 text-[8px] font-black text-white rounded-full flex items-center justify-center border-2 border-white">
+                                        {cartItems.length}
+                                    </span>
+                                )}
+                            </Link>
 
                             {isAdmin && (
                                 <Link to="/admin" className="p-2.5 rounded-xl hover:bg-gray-100 text-orange-600 transition-colors" title="Admin Panel">
                                     <LayoutDashboard className="w-4 h-4" />
                                 </Link>
                             )}
-                            {role === 'CHEF' && (
+                            {activeRole === 'CHEF' && (
                                 <Link to="/chef" className="p-2.5 rounded-xl hover:bg-gray-100 text-orange-600 transition-colors" title="Kitchen Display">
                                     <Flame className="w-4 h-4" />
                                 </Link>
                             )}
-                            {role === 'DELIVERY' && (
+                            {activeRole === 'DELIVERY' && (
                                 <Link to="/delivery" className="p-2.5 rounded-xl hover:bg-gray-100 text-green-600 transition-colors" title="Dispatch Board">
                                     <Truck className="w-4 h-4" />
                                 </Link>
