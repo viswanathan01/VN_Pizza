@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { Order, InventoryItem } = require('../models');
+const { Order, Ingredient } = require('../models');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
 
 // GET /api/analytics/dashboard
@@ -9,21 +9,20 @@ router.get('/dashboard', requireAuth, requireAdmin, async (req, res) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Run parallel queries for efficiency
     const [
       activeOrdersCount,
       outOfStockCount,
       revenueToday,
       totalItemsCount
     ] = await Promise.all([
-      // 1. Active Orders (Not Delivered/Cancelled)
+      // 1. Active Orders
       Order.countDocuments({ 
         status: { $in: ['ORDER_RECEIVED', 'IN_KITCHEN', 'OUT_FOR_DELIVERY'] } 
       }),
       
-      // 2. Out of Stock Items
-      InventoryItem.countDocuments({ 
-        $expr: { $lt: ["$quantity", "$threshold"] } 
+      // 2. Low Stock Ingredients
+      Ingredient.countDocuments({ 
+        $expr: { $lt: ["$inventory.currentStock", "$inventory.minThreshold"] } 
       }),
       
       // 3. Revenue Today
@@ -32,8 +31,8 @@ router.get('/dashboard', requireAuth, requireAdmin, async (req, res) => {
         { $group: { _id: null, total: { $sum: '$totalPrice' } } }
       ]),
       
-      // 4. Total Catalog Items
-      InventoryItem.countDocuments({})
+      // 4. Total Catalog Ingredients (Pizza Related)
+      Ingredient.countDocuments({})
     ]);
 
     res.json({

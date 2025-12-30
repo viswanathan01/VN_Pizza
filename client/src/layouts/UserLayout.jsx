@@ -1,83 +1,128 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { UserButton, useUser } from '@clerk/clerk-react';
-import { ShoppingCart, UtensilsCrossed, ClipboardList, Shield } from 'lucide-react';
-import { useSelector } from 'react-redux';
+import { UserButton, SignInButton } from '@clerk/clerk-react';
+import { ShoppingCart, Pizza, ClipboardList, Sun, Moon, PlusCircle, LayoutDashboard } from 'lucide-react';
+import { useEffect } from 'react';
 import { cn } from '../utils/cn';
+import { useTheme } from '../context/ThemeContext';
+import { motion } from 'framer-motion';
+
+import { useAuthStore } from '../hooks/useAuthStore';
+import { useCartStore } from '../hooks/useCartStore';
+import { useMenuStore } from '../hooks/useMenuStore';
 
 const UserLayout = () => {
     const { pathname } = useLocation();
-    const cartItems = useSelector(state => state.cart.items);
-    const { user } = useUser();
+    const { isLoaded, isSignedIn, user, role } = useAuthStore();
+    const { items: cartItems, loadCart } = useCartStore();
+    const { loadPacks } = useMenuStore();
+    const { theme, toggleTheme } = useTheme();
 
-    const tabs = [
-        { name: 'Menu', href: '/pizza/create', icon: UtensilsCrossed },
+    useEffect(() => {
+        if (isLoaded) {
+            loadPacks();
+            if (isSignedIn) {
+                loadCart();
+            }
+        }
+    }, [isLoaded, isSignedIn]);
+
+    if (!isLoaded) {
+        return (
+            <div className="min-h-screen bg-white flex items-center justify-center">
+                <div className="w-10 h-10 border-4 border-orange-500 border-t-transparent rounded-full animate-spin" />
+            </div>
+        );
+    }
+
+    const navItems = [
+        { name: 'Menu', href: '/menu', icon: Pizza },
+        { name: 'Pizza Builder', href: '/builder', icon: PlusCircle },
         { name: 'My Orders', href: '/orders', icon: ClipboardList },
     ];
 
+    const isAdmin = role === 'ADMIN';
+
     return (
-        <div className="min-h-screen bg-midnight-950 font-sans text-gray-100 selection:bg-luxury-gold selection:text-black">
-            {/* Top Navbar */}
-            <nav className="sticky top-0 z-40 w-full glass-panel border-b-0 border-white/5">
-                <div className="container mx-auto flex h-20 items-center justify-between px-4 sm:px-8">
-                    <Link to="/dashboard" className="flex items-center gap-2 font-display font-black text-2xl tracking-tighter text-white group">
-                        <span className="text-luxury-gold group-hover:brightness-125 transition-all">Plaza</span>Pizza
+        <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] transition-colors duration-300">
+            {/* Main Navbar */}
+            <nav className="sticky top-0 z-50 w-full bg-[var(--bg-primary)]/80 backdrop-blur-md border-b border-[var(--border-color)]">
+                <div className="container mx-auto h-20 flex items-center justify-between px-6">
+                    {/* Brand Logo */}
+                    <Link to="/" className="flex items-center gap-2 group">
+                        <div className="w-9 h-9 bg-orange-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-orange-500/20 group-hover:rotate-6 transition-transform">
+                            <Pizza className="w-5 h-5" />
+                        </div>
+                        <span className="text-xl font-bold tracking-tight">PLAZA<span className="text-orange-500 italic">PIZZA</span></span>
                     </Link>
 
-                    <div className="flex items-center gap-6">
-                        {/* Desktop Tabs */}
-                        <div className="hidden md:flex gap-2">
-                            {tabs.map((tab) => (
+                    {/* Central Navigation */}
+                    <div className="hidden md:flex gap-1">
+                        {navItems.map((item) => {
+                            const isActive = pathname === item.href;
+                            return (
                                 <Link
-                                    key={tab.href}
-                                    to={tab.href}
+                                    key={item.href}
+                                    to={item.href}
                                     className={cn(
-                                        "px-5 py-2.5 rounded-full text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-2",
-                                        pathname.startsWith(tab.href)
-                                            ? "bg-white/10 text-white shadow-glow"
-                                            : "text-gray-500 hover:text-white hover:bg-white/5"
+                                        "px-5 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-2",
+                                        isActive
+                                            ? "bg-orange-50 text-orange-600"
+                                            : "text-gray-500 hover:text-gray-900 hover:bg-gray-50"
                                     )}
                                 >
-                                    <tab.icon className="w-4 h-4" />
-                                    {tab.name}
+                                    <item.icon className={cn("w-4 h-4", isActive ? "text-orange-500" : "text-gray-400")} />
+                                    {item.name}
                                 </Link>
-                            ))}
+                            );
+                        })}
+                    </div>
+
+                    {/* Right Side Actions */}
+                    <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2 pr-4 border-r">
+                            <button onClick={toggleTheme} className="p-2.5 rounded-xl hover:bg-gray-100 text-gray-500 transition-colors">
+                                {theme === 'DARK' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                            </button>
+
+                            <Link to="/cart" className="relative p-2.5 rounded-xl hover:bg-gray-100 text-gray-500 transition-colors">
+                                <ShoppingCart className="w-4 h-4" />
+                                {cartItems.length > 0 && (
+                                    <span className="absolute top-1 right-1 w-4 h-4 bg-orange-500 text-[8px] font-black text-white rounded-full flex items-center justify-center border-2 border-white">
+                                        {cartItems.length}
+                                    </span>
+                                )}
+                            </Link>
+
+                            {isAdmin && (
+                                <Link to="/admin" className="p-2.5 rounded-xl hover:bg-gray-100 text-orange-600 transition-colors" title="Admin Panel">
+                                    <LayoutDashboard className="w-4 h-4" />
+                                </Link>
+                            )}
                         </div>
 
-                        {/* Cart */}
-                        <Link to="/cart" className="relative p-3 hover:bg-white/10 rounded-full transition-colors group">
-                            <ShoppingCart className="w-5 h-5 text-gray-400 group-hover:text-luxury-gold transition-colors" />
-                            {cartItems.length > 0 && (
-                                <span className="absolute top-0 right-0 flex h-4 w-4 items-center justify-center rounded-full bg-signal-red text-[10px] font-black text-white shadow-sm animate-in zoom-in border border-midnight-950">
-                                    {cartItems.length}
-                                </span>
-                            )}
-                        </Link>
-
-                        {/* User Menu */}
-                        <div className="border-l pl-6 border-white/10 flex items-center gap-4">
-                            <div className="bg-white/10 rounded-full p-1 border border-white/5">
-                                <UserButton afterSignOutUrl="/sign-in" appearance={{
-                                    elements: {
-                                        avatarBox: "w-8 h-8",
-                                        userButtonPopoverCard: "bg-midnight-900 border border-white/10 shadow-2xl text-white",
-                                        userButtonPopoverFooter: "hidden"
-                                    }
-                                }} />
+                        {/* User Profile */}
+                        <div className="flex items-center gap-3">
+                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest hidden sm:block">
+                                {user?.firstName || 'Guest'}
+                            </span>
+                            <div className="w-9 h-9 rounded-lg overflow-hidden border bg-gray-50 shadow-sm">
+                                {isSignedIn ? (
+                                    <UserButton appearance={{ elements: { avatarBox: "w-9 h-9" } }} />
+                                ) : (
+                                    <SignInButton mode="modal">
+                                        <button className="w-full h-full flex items-center justify-center bg-gray-900 text-white text-[10px] font-bold uppercase hover:bg-orange-500 transition-colors">
+                                            Log In
+                                        </button>
+                                    </SignInButton>
+                                )}
                             </div>
-
-                            {user?.publicMetadata?.role === 'ADMIN' && (
-                                <Link to="/admin" className="hidden md:flex items-center gap-2 text-[10px] font-black text-midnight-950 bg-luxury-gold px-4 py-2 rounded-full hover:bg-white transition-all shadow-glow">
-                                    <Shield className="w-3 h-3" />
-                                    ADMIN
-                                </Link>
-                            )}
                         </div>
                     </div>
                 </div>
             </nav>
 
-            {/* Main Content */}
-            <main className="container mx-auto p-4 sm:p-8 animate-fade-in-up">
+            {/* Content Container */}
+            <main className="container mx-auto px-6 py-10 animate-fade-in">
                 <Outlet />
             </main>
         </div>

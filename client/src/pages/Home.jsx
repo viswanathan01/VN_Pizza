@@ -1,105 +1,108 @@
 import { Link } from 'react-router-dom';
-import { Button } from '../components/ui/Button';
-import { ArrowRight, ChefHat, Timer, Star } from 'lucide-react';
-import { useAuth } from '@clerk/clerk-react';
+import { ArrowRight, Flame, ChefHat, Sparkles } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 const Home = () => {
-    const { isSignedIn } = useAuth();
-
     return (
-        <div className="min-h-screen bg-brand-charcoal text-white font-sans selection:bg-brand-red selection:text-white">
-            {/* Navigation (Transparent) */}
-            <nav className="absolute top-0 w-full z-50 px-6 py-6 flex justify-between items-center max-w-7xl mx-auto left-0 right-0">
-                <div className="flex items-center gap-2 font-display font-bold text-2xl tracking-tight">
-                    <span className="text-white">Plaza</span><span className="text-brand-gold">Pizza</span>
-                </div>
-                <div className="flex gap-4">
-                    {isSignedIn ? (
-                        <Link to="/dashboard">
-                            <Button className="bg-brand-red hover:bg-red-700 text-white rounded-full px-6">Go to Dashboard</Button>
-                        </Link>
-                    ) : (
-                        <>
-                            <Link to="/sign-in">
-                                <Button variant="ghost" className="text-white hover:text-brand-gold hover:bg-white/10">Sign In</Button>
-                            </Link>
-                            <Link to="/sign-up">
-                                <Button className="bg-brand-gold text-brand-dark hover:bg-yellow-400 font-bold rounded-full px-6">Get Started</Button>
-                            </Link>
-                        </>
-                    )}
-                </div>
-            </nav>
-
+        <div className="space-y-12 pb-20">
             {/* Hero Section */}
-            <div className="relative pt-32 pb-20 lg:pt-48 lg:pb-32 overflow-hidden">
-                <div className="container mx-auto px-6 relative z-10">
-                    <div className="max-w-3xl">
-                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-brand-gold text-sm font-medium mb-6 animate-in slide-in-from-bottom-4 fade-in duration-700">
-                            <Star className="w-4 h-4 fill-brand-gold" /> Voted #1 Pizza in Town
-                        </div>
-                        <h1 className="text-5xl lg:text-7xl font-display font-extrabold leading-tight mb-6 animate-in slide-in-from-bottom-8 fade-in duration-1000">
-                            Artisanal Pizza, <br />
-                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-gold to-orange-500">Crafted by You.</span>
-                        </h1>
-                        <p className="text-xl text-gray-300 mb-10 max-w-xl leading-relaxed animate-in slide-in-from-bottom-12 fade-in duration-1000 delay-100">
-                            Experience the perfect balance of fresh ingredients, premium toppings, and
-                            chef-inspired sauces. Delivered piping hot in minutes.
-                        </p>
-                        <div className="flex flex-col sm:flex-row gap-4 animate-in slide-in-from-bottom-16 fade-in duration-1000 delay-200">
-                            <Link to={isSignedIn ? "/pizza/create" : "/sign-up"}>
-                                <Button size="lg" className="bg-brand-red hover:bg-red-700 text-white px-8 h-14 text-lg rounded-full shadow-xl shadow-red-900/30">
-                                    Start Your Order <ArrowRight className="ml-2 w-5 h-5" />
-                                </Button>
-                            </Link>
-                            <Link to="/menu"> {/* Menu without ordering, or just scroll down */}
-                                <Button variant="outline" size="lg" className="border-white/20 text-white hover:bg-white/10 h-14 text-lg rounded-full px-8">
-                                    View Menu
-                                </Button>
-                            </Link>
-                        </div>
-                    </div>
+            <div className="relative rounded-[3rem] overflow-hidden min-h-[75vh] flex flex-col items-center justify-center text-center p-8 shadow-2xl bg-gray-900">
+                {/* Background Image */}
+                <div className="absolute inset-0 z-0">
+                    <img
+                        src="https://images.unsplash.com/photo-1593560708920-61dd98c46a4e?q=80&w=2000&auto=format&fit=crop"
+                        className="w-full h-full object-cover opacity-60 scale-105"
+                        alt="Pizza Background"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-900/40 to-transparent" />
                 </div>
 
-                {/* Hero Image / Abstract Background */}
-                <div className="absolute top-0 right-0 w-full h-full lg:w-1/2 bg-[url('https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?q=80&w=2881&auto=format&fit=crop')] bg-cover bg-center lg:bg-left opacity-20 lg:opacity-50 mask-image-gradient pointer-events-none -z-0 mix-blend-overlay"></div>
-                <div className="absolute bottom-0 left-0 w-full h-32 bg-gradient-to-t from-brand-charcoal to-transparent"></div>
+                <div className="relative z-10 max-w-4xl space-y-10">
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-orange-500 text-white text-xs font-bold uppercase tracking-widest shadow-xl shadow-orange-500/20 mx-auto"
+                    >
+                        <Flame className="w-4 h-4 fill-white" />
+                        Premium Artisan Quality
+                    </motion.div>
+
+                    <motion.h1
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: 0.1 }}
+                        className="text-6xl md:text-8xl lg:text-9xl font-bold leading-[0.9] tracking-tighter text-white"
+                    >
+                        The Art of <br />
+                        <span className="text-orange-500 italic">Pizza.</span>
+                    </motion.h1>
+
+                    <motion.p
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.2 }}
+                        className="text-xl md:text-2xl text-gray-300 max-w-2xl mx-auto font-medium"
+                    >
+                        Design your own masterpiece or choose from our chef's curated selection of artisanal pizzas.
+                    </motion.p>
+
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.3 }}
+                        className="flex flex-col sm:flex-row gap-6 justify-center items-center pt-10"
+                    >
+                        <Link to="/builder" className="group">
+                            <div className="px-12 py-7 bg-white text-gray-900 rounded-3xl font-bold text-xl flex items-center gap-4 hover:bg-orange-500 hover:text-white transition-all shadow-2xl hover:scale-105 active:scale-95">
+                                <ChefHat className="w-6 h-6" />
+                                Start Building
+                                <ArrowRight className="w-5 h-5 group-hover:translate-x-2 transition-transform" />
+                            </div>
+                        </Link>
+
+                        <Link to="/menu" className="group">
+                            <div className="px-12 py-7 bg-gray-800/50 backdrop-blur-md text-white border border-white/10 rounded-3xl font-bold text-xl flex items-center gap-4 hover:bg-white hover:text-gray-900 transition-all">
+                                <Sparkles className="w-6 h-6 text-orange-500" />
+                                View Menu
+                            </div>
+                        </Link>
+                    </motion.div>
+                </div>
             </div>
 
-            {/* Features Strip */}
-            <div className="border-t border-white/10 bg-black/20 backdrop-blur-sm">
-                <div className="container mx-auto px-6 py-12 grid grid-cols-1 md:grid-cols-3 gap-8">
-                    <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-brand-red/20 flex items-center justify-center text-brand-red">
-                            <ChefHat className="w-6 h-6" />
-                        </div>
-                        <div>
-                            <h3 className="font-bold text-lg">Fresh Ingredients</h3>
-                            <p className="text-gray-400 text-sm">Sourced locally every morning.</p>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-brand-gold/20 flex items-center justify-center text-brand-gold">
-                            <Timer className="w-6 h-6" />
-                        </div>
-                        <div>
-                            <h3 className="font-bold text-lg">Fast Delivery</h3>
-                            <p className="text-gray-400 text-sm">Target time: 35 minutes or less.</p>
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-green-500/20 flex items-center justify-center text-green-500">
-                            <Star className="w-6 h-6" />
-                        </div>
-                        <div>
-                            <h3 className="font-bold text-lg">Top Rated</h3>
-                            <p className="text-gray-400 text-sm">Over 500+ 5-star reviews.</p>
-                        </div>
-                    </div>
-                </div>
+            {/* Feature Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 px-2">
+                <FeatureCard
+                    title="Hand-Tossed Dough"
+                    desc="Kneaded daily in our kitchen for the perfect airy crust."
+                    image="https://images.unsplash.com/photo-1589187151053-5ec8818e661b?auto=format&fit=crop&w=600"
+                />
+                <FeatureCard
+                    title="San Marzano Sauce"
+                    desc="Pure Italian tomatoes, fresh basil, and extra virgin olive oil."
+                    image="https://images.unsplash.com/photo-1592398555811-0e12f9b8c946?auto=format&fit=crop&w=600"
+                />
+                <FeatureCard
+                    title="Mozzarella di Bufala"
+                    desc="Creamy, fresh water buffalo mozzarella imported weekly."
+                    image="https://images.unsplash.com/photo-1615361200141-f45040f367be?auto=format&fit=crop&w=600"
+                />
             </div>
         </div>
     );
 };
+
+const FeatureCard = ({ title, desc, image }) => (
+    <div className="group relative h-64 rounded-[2.5rem] overflow-hidden cursor-default shadow-lg">
+        <div className="absolute inset-0">
+            <img src={image} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={title} />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
+        </div>
+        <div className="absolute bottom-0 left-0 p-8 space-y-2">
+            <h3 className="text-white font-bold text-xl">{title}</h3>
+            <p className="text-gray-400 text-sm font-medium leading-relaxed">{desc}</p>
+        </div>
+    </div>
+);
 
 export default Home;

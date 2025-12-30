@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react';
 import { useUser } from '@clerk/clerk-react';
 import { Link } from 'react-router-dom';
 import axios from '../api/axios';
-import { ShoppingBag, ChevronRight, Clock, Star, Zap, MapPin, Package, ArrowRight, Flame } from 'lucide-react';
-import { Button } from '../components/ui/Button';
+import { ShoppingBag, ChevronRight, Clock, Star, Zap, MapPin, Package, ArrowRight, Flame, Heart } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '../utils/cn';
 import { useAuth } from '@clerk/clerk-react';
@@ -32,145 +31,103 @@ const Dashboard = () => {
         fetchActiveOrder();
     }, []);
 
-    const firstName = user?.firstName || 'Connoisseur';
+    const firstName = user?.firstName || 'Guest';
 
     return (
-        <div className="space-y-8 pb-20 pt-4">
-            {/* --- HERO SECTION --- */}
-            <section className="relative h-[500px] rounded-[40px] overflow-hidden flex items-end p-8 md:p-16 group">
-                {/* Background Image with Zoom Effect */}
+        <div className="space-y-10 pb-20">
+            {/* Hero Section */}
+            <section className="relative h-[480px] rounded-[3rem] overflow-hidden flex items-center p-12 lg:p-20 group shadow-2xl">
                 <div className="absolute inset-0 z-0">
                     <img
                         src="https://images.unsplash.com/photo-1574126154517-d1e0d89e7344?q=80&w=2600&auto=format&fit=crop"
                         alt="Artisan Pizza"
-                        className="w-full h-full object-cover transition-transform duration-[20s] ease-linear group-hover:scale-110"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000"
                     />
-                    {/* Cinematic Gradient Overlay */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-midnight-950 via-midnight-950/60 to-transparent" />
-                    <div className="absolute inset-0 bg-gradient-to-r from-midnight-950/90 to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-r from-gray-900 via-gray-900/40 to-transparent" />
                 </div>
 
-                {/* Content */}
                 <motion.div
-                    initial={{ opacity: 0, y: 30 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.8 }}
-                    className="relative z-10 max-w-2xl space-y-6"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    className="relative z-10 max-w-xl space-y-6"
                 >
-                    <div className="inline-flex items-center gap-3 px-4 py-1.5 rounded-full glass-panel border-luxury-gold/30 gold-glow">
-                        <Flame className="w-3 h-3 text-luxury-gold animate-pulse" />
-                        <span className="text-luxury-gold text-[10px] font-black uppercase tracking-[0.2em] font-display">Premium Selection</span>
+                    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-orange-500 text-white text-[10px] font-bold uppercase tracking-widest shadow-lg shadow-orange-500/20">
+                        <Flame className="w-4 h-4" /> Perfecting the Craft
                     </div>
-
-                    <h1 className="text-5xl md:text-7xl font-display font-black text-white leading-[0.9] tracking-tight">
-                        Culinary <br />
-                        <span className="text-gradient-gold">Perfection.</span>
+                    <h1 className="text-5xl lg:text-7xl font-bold text-white tracking-tighter leading-none">
+                        Welcome, <br />
+                        <span className="text-orange-500 italic">{firstName}.</span>
                     </h1>
-
-                    <p className="text-gray-400 text-lg font-medium leading-relaxed max-w-lg">
-                        Welcome back, {firstName}. Your personalized chef's table awaits.
-                        Experience the art of pizza making with our global ingredient catalog.
+                    <p className="text-gray-300 text-lg font-medium max-w-md">
+                        Your personalized pizza studio is ready. Ready to design your next masterpiece?
                     </p>
-
-                    <Link to="/pizza/create">
-                        <Button className="h-14 px-8 rounded-full bg-luxury-gold hover:bg-white hover:text-black text-midnight-950 font-black tracking-wide text-sm transition-all shadow-glow mt-4">
-                            START CREATING <ArrowRight className="ml-2 w-4 h-4" />
-                        </Button>
+                    <Link to="/builder">
+                        <button className="mt-4 px-10 h-16 bg-white text-gray-900 rounded-2xl font-bold uppercase tracking-widest hover:bg-orange-500 hover:text-white transition-all shadow-xl flex items-center gap-3">
+                            Design Now <ArrowRight className="w-5 h-5" />
+                        </button>
                     </Link>
                 </motion.div>
             </section>
 
-            {/* --- INFO GRID --- */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-
-                {/* Active Order Card */}
-                <div className="lg:col-span-8 flex flex-col gap-6">
-                    <div className="flex items-center justify-between px-2">
-                        <h3 className="text-xl font-display font-bold text-white">Live Operations</h3>
-                        <Link to="/orders" className="text-gray-500 hover:text-white text-xs font-bold uppercase tracking-widest transition-colors flex items-center gap-2">
-                            View History <ChevronRight className="w-3 h-3" />
-                        </Link>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+                {/* Active Tracking */}
+                <div className="lg:col-span-8 space-y-6">
+                    <div className="flex items-center justify-between">
+                        <h3 className="text-2xl font-bold text-gray-900 tracking-tight">Current Status</h3>
+                        <Link to="/orders" className="text-xs font-bold text-orange-600 hover:underline uppercase tracking-widest">View History</Link>
                     </div>
 
                     {activeOrder ? (
-                        <div className="glass-panel p-8 rounded-[32px] flex flex-col md:flex-row items-center gap-8 relative overflow-hidden group">
-                            {/* Ambient Glow */}
-                            <div className="absolute -top-24 -right-24 w-64 h-64 bg-neon-purple/20 rounded-full blur-[100px] group-hover:bg-neon-purple/30 transition-all" />
-
-                            <div className="w-24 h-24 rounded-2xl bg-midnight-900 border border-white/5 flex items-center justify-center relative shadow-2xl">
-                                <Package className="w-10 h-10 text-white" />
-                                <div className="absolute -top-3 -right-3 bg-signal-green text-midnight-950 text-[10px] font-black px-3 py-1 rounded-full animate-bounce shadow-glow">LIVE</div>
+                        <div className="card p-8 flex flex-col md:flex-row items-center gap-8 shadow-sm group border-orange-100 bg-orange-50/20">
+                            <div className="w-20 h-20 rounded-2xl bg-white border border-orange-100 flex items-center justify-center shadow-sm relative shrink-0">
+                                <Package className="w-10 h-10 text-orange-500" />
+                                <div className="absolute -top-2 -right-2 w-4 h-4 bg-orange-500 rounded-full animate-ping" />
                             </div>
-
-                            <div className="flex-1 space-y-3 z-10 text-center md:text-left">
-                                <div className="flex flex-col">
-                                    <span className="text-[10px] font-black uppercase text-gray-500 tracking-[0.2em]">Status</span>
-                                    <h4 className="text-2xl font-display font-bold text-white">{activeOrder.status.replace(/_/g, ' ')}</h4>
+                            <div className="flex-1 space-y-4 w-full">
+                                <div>
+                                    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">In Transit</div>
+                                    <h4 className="text-2xl font-bold text-gray-900">{activeOrder.status.replace(/_/g, ' ')}</h4>
                                 </div>
-
-                                {/* Progress Bar */}
-                                <div className="w-full bg-midnight-950 h-2 rounded-full overflow-hidden border border-white/5">
+                                <div className="w-full h-2 bg-white rounded-full border overflow-hidden">
                                     <motion.div
                                         initial={{ width: 0 }}
                                         animate={{ width: activeOrder.status === 'ORDER_RECEIVED' ? '25%' : activeOrder.status === 'IN_KITCHEN' ? '50%' : '75%' }}
-                                        className="bg-gradient-to-r from-neon-purple to-neon-blue h-full rounded-full shadow-glow-blue"
+                                        className="h-full bg-orange-500 rounded-full"
                                     />
                                 </div>
                             </div>
-
-                            <Link to="/orders" className="z-10">
-                                <Button variant="outline" className="border-white/10 text-white hover:bg-white hover:text-black rounded-xl">Track Status</Button>
+                            <Link to="/orders">
+                                <button className="px-6 h-12 border rounded-xl font-bold text-xs hover:bg-white transition-colors">Details</button>
                             </Link>
                         </div>
                     ) : (
-                        <div className="glass-panel p-10 rounded-[32px] flex flex-col items-center justify-center text-center space-y-4 border-dashed border-white/10 opacity-70 hover:opacity-100 transition-opacity">
-                            <ShoppingBag className="w-8 h-8 text-gray-600" />
-                            <p className="font-medium text-gray-400 text-sm">No culinary projects in progress.</p>
+                        <div className="card h-48 flex flex-col items-center justify-center p-12 border-dashed bg-gray-50/50">
+                            <ShoppingBag className="w-8 h-8 text-gray-300 mb-4" />
+                            <p className="text-gray-500 font-medium">No active orders found.</p>
                         </div>
                     )}
 
-                    {/* Quick Access Grid */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <QuickAction icon={Star} label="Curated" />
-                        <QuickAction icon={Clock} label="Fast Track" />
-                        <QuickAction icon={MapPin} label="Concierge" />
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 pt-4">
+                        <QuickAction icon={Star} label="Best Sellers" />
+                        <QuickAction icon={Heart} label="Last Ordered" />
+                        <QuickAction icon={MapPin} label="Saved Address" />
                         <QuickAction icon={Package} label="Catering" />
                     </div>
                 </div>
 
                 {/* Sidebar */}
-                <div className="lg:col-span-4 space-y-6">
-                    {/* Membership Card */}
-                    <div className="relative p-8 rounded-[32px] overflow-hidden">
-                        <div className="absolute inset-0 bg-gradient-to-br from-luxury-gold to-yellow-600" />
-                        <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 mix-blend-overlay" />
-
-                        <div className="relative z-10 text-midnight-950">
-                            <div className="flex justify-between items-start mb-8">
-                                <Zap className="w-8 h-8" />
-                                <span className="text-[10px] font-black uppercase tracking-widest border border-midnight-950/20 px-2 py-1 rounded-lg">Elite</span>
-                            </div>
-                            <h4 className="text-3xl font-display font-black leading-none mb-2">Plaza<br />Club</h4>
-                            <p className="font-medium opacity-80 text-sm mb-6">Unlock exclusive tastings and priority delivery.</p>
-                            <Button className="w-full h-12 bg-black/10 hover:bg-black/20 text-midnight-950 font-bold border-none">Access Benefits</Button>
+                <div className="lg:col-span-4 space-y-8">
+                    <div className="card bg-gray-900 border-none p-10 space-y-6 text-white text-center">
+                        <div className="w-16 h-16 bg-orange-500 rounded-2xl flex items-center justify-center mx-auto shadow-lg shadow-orange-500/20 mb-4">
+                            <Zap className="w-8 h-8 text-white" />
                         </div>
-                    </div>
-
-                    {/* Ingredient Showcase */}
-                    <div className="glass-panel p-8 rounded-[32px]">
-                        <h4 className="font-bold text-white mb-6 flex items-center gap-2 font-display">
-                            <Star className="w-4 h-4 text-luxury-gold" /> Trending
-                        </h4>
-                        <div className="space-y-4">
-                            {['Truffle Oil Infusion', 'San Marzano Tomatoes', 'Buffalo Mozzarella'].map(i => (
-                                <div key={i} className="flex items-center gap-4 group cursor-pointer">
-                                    <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-luxury-gold group-hover:text-midnight-950 transition-colors">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-current" />
-                                    </div>
-                                    <span className="text-sm font-medium text-gray-400 group-hover:text-white transition-colors">{i}</span>
-                                </div>
-                            ))}
-                        </div>
+                        <h4 className="text-2xl font-bold tracking-tight">Plaza Priority</h4>
+                        <p className="text-gray-400 text-sm font-medium leading-relaxed">
+                            Join our elite circle for priority kitchen queue and exclusive tastings.
+                        </p>
+                        <button className="w-full h-14 bg-white text-gray-900 rounded-2xl font-bold uppercase tracking-widest hover:bg-orange-500 hover:text-white transition-all">
+                            Learn More
+                        </button>
                     </div>
                 </div>
             </div>
@@ -179,10 +136,10 @@ const Dashboard = () => {
 };
 
 const QuickAction = ({ icon: Icon, label }) => (
-    <div className="flex flex-col items-center gap-3 p-6 glass-panel rounded-3xl hover:bg-white/5 hover:border-luxury-gold/30 transition-all cursor-pointer group">
-        <Icon className="w-6 h-6 text-gray-400 group-hover:text-luxury-gold transition-colors" />
-        <span className="text-[10px] font-black uppercase text-gray-500 tracking-widest group-hover:text-white transition-colors">{label}</span>
+    <div className="card p-6 flex flex-col items-center gap-3 hover:border-orange-200 transition-all cursor-pointer group">
+        <Icon className="w-6 h-6 text-gray-400 group-hover:text-orange-500 transition-colors" />
+        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest group-hover:text-gray-900 transition-colors">{label}</span>
     </div>
-)
+);
 
 export default Dashboard;
