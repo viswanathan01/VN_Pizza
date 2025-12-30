@@ -9,17 +9,23 @@ import { useCartStore } from '../hooks/useCartStore';
 import { useMenuStore } from '../hooks/useMenuStore';
 import { useAuthStore } from '../hooks/useAuthStore';
 
-const CATEGORIES = ['Classic', 'Veg', 'Non-Veg', 'Premium', 'Spicy'];
+const CATEGORIES = [
+    { id: 'CLASSIC', label: 'Classic' },
+    { id: 'VEG', label: 'Veg' },
+    { id: 'NON_VEG', label: 'Non-Veg' },
+    { id: 'PREMIUM', label: 'Premium' },
+    { id: 'SPICY', label: 'Spicy' }
+];
 
 const Menu = () => {
     const navigate = useNavigate();
     const { packs, status: menuStatus } = useMenuStore();
     const { addToCart } = useCartStore();
     const { isSignedIn } = useAuthStore();
-    const [selectedCategory, setSelectedCategory] = useState('All');
+    const [selectedCategory, setSelectedCategory] = useState('ALL');
 
     const featuredPacks = packs.filter(p => p.isFeatured);
-    const filteredPacks = packs.filter(p => !p.isFeatured && (selectedCategory === 'All' || p.category === selectedCategory));
+    const filteredPacks = packs.filter(p => !p.isFeatured && (selectedCategory === 'ALL' || p.category === selectedCategory));
 
     const handleAddToCart = async (pack) => {
         if (!isSignedIn) {
@@ -120,16 +126,16 @@ const Menu = () => {
                         <p className="text-gray-500 font-medium mt-1">Curated by our masters for the ultimate flavor profile.</p>
                     </div>
                     <div className="flex gap-2 overflow-x-auto pb-2">
-                        {['All', ...CATEGORIES].map(cat => (
+                        {[{ id: 'ALL', label: 'All' }, ...CATEGORIES].map(cat => (
                             <button
-                                key={cat}
-                                onClick={() => setSelectedCategory(cat)}
+                                key={cat.id}
+                                onClick={() => setSelectedCategory(cat.id)}
                                 className={cn(
                                     "px-6 py-2.5 rounded-full text-xs font-bold uppercase tracking-widest transition-all whitespace-nowrap",
-                                    selectedCategory === cat ? "bg-orange-500 text-white" : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                                    selectedCategory === cat.id ? "bg-orange-500 text-white" : "bg-gray-100 text-gray-500 hover:bg-gray-200"
                                 )}
                             >
-                                {cat}
+                                {cat.label}
                             </button>
                         ))}
                     </div>
