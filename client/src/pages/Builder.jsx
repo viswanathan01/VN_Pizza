@@ -31,6 +31,10 @@ const Builder = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const { isSignedIn } = useAuthStore();
 
+    // Pagination State
+    const [page, setPage] = useState(1);
+    const ITEMS_PER_PAGE = 9;
+
     // Selections
     const [selectedBase, setSelectedBase] = useState(null);
     const [selectedSauce, setSelectedSauce] = useState(null);
@@ -39,6 +43,11 @@ const Builder = () => {
 
     const { addToCart } = useCartStore();
     const navigate = useNavigate();
+
+    // Reset page when step or search changes
+    useEffect(() => {
+        setPage(1);
+    }, [step, searchQuery]);
 
     useEffect(() => {
         const fetchInventory = async () => {
@@ -93,6 +102,9 @@ const Builder = () => {
         return items;
     }, [inventory, step, searchQuery, currentStepConfig]);
 
+    const totalPages = Math.ceil(filteredItems.length / ITEMS_PER_PAGE);
+    const paginatedItems = filteredItems.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
+
     const calculatePrice = () => {
         let price = 0;
         if (selectedBase) price += selectedBase.pricePerUnit;
@@ -107,6 +119,10 @@ const Builder = () => {
         if (existing) {
             setSelectedToppings(selectedToppings.filter(t => t._id !== topping._id));
         } else {
+            if (selectedToppings.length >= 6) {
+                toast.error("Maximum 6 toppings allowed!");
+                return;
+            }
             setSelectedToppings([...selectedToppings, { ...topping, quantity: 1 }]);
         }
     };
@@ -186,15 +202,13 @@ const Builder = () => {
                                             {[...Array(t.quantity * 4)].map((_, i) => (
                                                 <div
                                                     key={i}
-                                                    className="absolute w-6 h-6 flex items-center justify-center"
+                                                    className="absolute w-3 h-3 rounded-full bg-green-600 shadow-sm border border-green-800"
                                                     style={{
                                                         top: `${15 + Math.random() * 70}%`,
                                                         left: `${15 + Math.random() * 70}%`,
                                                         transform: `rotate(${Math.random() * 360}deg)`
                                                     }}
-                                                >
-                                                    <img src={t.image.url} className="w-full h-full object-contain filter drop-shadow-md" />
-                                                </div>
+                                                />
                                             ))}
                                         </div>
                                     </div>
@@ -234,7 +248,7 @@ const Builder = () => {
                             </div>
 
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                                {filteredItems.map(item => {
+                                {paginatedItems.map(item => {
                                     const isSelected = (step === 1 && selectedBase?._id === item._id) ||
                                         (step === 2 && selectedSauce?._id === item._id) ||
                                         (step === 3 && selectedCheese?._id === item._id) ||
@@ -268,6 +282,29 @@ const Builder = () => {
                                     );
                                 })}
                             </div>
+
+                            {/* Pagination Controls */}
+                            {totalPages > 1 && (
+                                <div className="flex justify-center items-center gap-4 mt-6">
+                                    <button
+                                        onClick={() => setPage(p => Math.max(1, p - 1))}
+                                        disabled={page === 1}
+                                        className="p-2 rounded-lg border hover:bg-gray-50 disabled:opacity-30 disabled:hover:bg-transparent"
+                                    >
+                                        <ChevronLeft className="w-4 h-4" />
+                                    </button>
+                                    <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+                                        Page {page} of {totalPages}
+                                    </span>
+                                    <button
+                                        onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                                        disabled={page === totalPages}
+                                        className="p-2 rounded-lg border hover:bg-gray-50 disabled:opacity-30 disabled:hover:bg-transparent"
+                                    >
+                                        <ChevronRight className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            )}
                         </>
                     ) : (
                         <div className="space-y-8 animate-fade-in-up">
