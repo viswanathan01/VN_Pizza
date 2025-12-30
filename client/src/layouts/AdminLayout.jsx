@@ -1,6 +1,6 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { UserButton } from '@clerk/clerk-react';
-import { LayoutDashboard, ShoppingBag, Box, Cpu } from 'lucide-react';
+import { LayoutDashboard, ShoppingBag, Box, Cpu, Users } from 'lucide-react';
 import { cn } from '../utils/cn';
 
 const AdminLayout = () => {
@@ -10,6 +10,7 @@ const AdminLayout = () => {
         { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
         { name: 'Orders', href: '/admin/orders', icon: ShoppingBag },
         { name: 'Inventory', href: '/admin/inventory', icon: Box },
+        { name: 'Users', href: '/admin/users', icon: Users },
     ];
 
     return (

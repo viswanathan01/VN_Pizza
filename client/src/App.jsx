@@ -15,6 +15,7 @@ import Cart from './pages/Cart';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminOrders from './pages/AdminOrders';
 import AdminInventory from './pages/AdminInventory';
+import AdminUsers from './pages/AdminUsers';
 import ChefDashboard from './pages/ChefDashboard';
 import DeliveryDashboard from './pages/DeliveryDashboard';
 import SignInPage from './pages/auth/SignInPage';
@@ -101,6 +102,7 @@ function App() {
           <Route index element={<AdminDashboard />} />
           <Route path="orders" element={<AdminOrders />} />
           <Route path="inventory" element={<AdminInventory />} />
+          <Route path="users" element={<AdminUsers />} />
         </Route>
 
         {/* Catch all */}

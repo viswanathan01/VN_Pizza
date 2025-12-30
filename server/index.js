@@ -27,12 +27,14 @@ const orderRoutes = require('./routes/orders');
 const userRoutes = require('./routes/users');
 const analyticsRoutes = require('./routes/analytics');
 const cartRoutes = require('./routes/cart');
+const adminRoutes = require('./routes/admin');
 
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/user', userRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/cart', cartRoutes);
+app.use('/api/admin', adminRoutes);
 
 app.get('/', (req, res) => {
     res.send('🍕 Plaza Pizza API is running.');
