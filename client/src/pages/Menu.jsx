@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, ShoppingCart, Edit3, ArrowRight, Pizza, ChefHat, Sparkles } from 'lucide-react';
+import { Loader2, ShoppingCart, Edit3, ArrowRight, Star, Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../utils/cn';
 
 import { useCartStore } from '../hooks/useCartStore';
@@ -10,6 +10,7 @@ import { useMenuStore } from '../hooks/useMenuStore';
 import { useAuthStore } from '../hooks/useAuthStore';
 
 const CATEGORIES = [
+    { id: 'ALL', label: 'All' },
     { id: 'CLASSIC', label: 'Classic' },
     { id: 'VEG', label: 'Veg' },
     { id: 'NON_VEG', label: 'Non-Veg' },
@@ -24,167 +25,191 @@ const Menu = () => {
     const { isSignedIn } = useAuthStore();
     const [selectedCategory, setSelectedCategory] = useState('ALL');
 
-    const featuredPacks = packs.filter(p => p.isFeatured);
-    const filteredPacks = packs.filter(p => !p.isFeatured && (selectedCategory === 'ALL' || p.category === selectedCategory));
+    // FIX: Prioritize 'Double Pepperoni' as featured to avoid broken image, or fallback to any featured
+    const featuredPack = packs.find(p => p.name === 'Double Pepperoni') || packs.find(p => p.isFeatured);
+    // FIX: Filter out the specific featured pack being shown
+    const filteredPacks = packs.filter(p => p._id !== featuredPack?._id && (selectedCategory === 'ALL' || p.category === selectedCategory));
 
-    const handleAddToCart = async (pack) => {
+    const handleAddToCart = async (pack, e) => {
+        e?.stopPropagation();
         if (!isSignedIn) {
-            toast.error("Please log in to add items to your cart.");
+            toast.error("Please log in to add items.");
             return;
         }
 
         const cartItem = {
             type: 'PACK',
             packId: pack._id,
-            snapshot: { ...pack.ingredientsSnapshot, name: pack.name, description: pack.description },
+            snapshot: {
+                ...pack.ingredientsSnapshot,
+                name: pack.name,
+                description: pack.description,
+                image: pack.image // FIX: Add image to snapshot for Cart
+            },
             price: pack.price,
             quantity: 1
         };
 
         await addToCart(cartItem);
-        toast.success(`${pack.name} added to cart!`);
+        toast.success(`${pack.name} added!`);
     };
 
     if (menuStatus === 'loading' || menuStatus === 'idle') return (
-        <div className="flex flex-col items-center justify-center h-[60vh] space-y-4">
-            <Loader2 className="w-12 h-12 animate-spin text-orange-500" />
-            <p className="font-bold uppercase tracking-widest text-xs opacity-50">Preparing the Menu...</p>
+        <div className="flex flex-col items-center justify-center min-h-screen">
+            <Loader2 className="w-10 h-10 animate-spin text-orange-500" />
         </div>
     );
 
     return (
-        <div className="space-y-20 pb-20">
-            {/* Minimalist Hero */}
-            {featuredPacks.length > 0 && (
-                <section className="relative h-[70vh] rounded-[2.5rem] overflow-hidden group shadow-2xl">
-                    <img
-                        src={featuredPacks[0].image?.url}
-                        className="absolute inset-0 w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
-                        alt="Featured Pizza"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                    <div className="absolute inset-0 flex flex-col justify-end p-12 md:p-20 space-y-6">
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-orange-500 text-white text-[10px] font-bold uppercase tracking-widest w-fit"
-                        >
-                            <Sparkles className="w-4 h-4" /> Chef's Masterpiece
-                        </motion.div>
-                        <motion.h1
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.1 }}
-                            className="text-5xl md:text-7xl font-bold text-white tracking-tight leading-none"
-                        >
-                            {featuredPacks[0].name}
-                        </motion.h1>
-                        <motion.p
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            transition={{ delay: 0.2 }}
-                            className="text-lg text-gray-200 max-w-xl font-medium"
-                        >
-                            {featuredPacks[0].description}
-                        </motion.p>
-                        <div className="flex gap-4 pt-4">
-                            <button
-                                onClick={() => handleAddToCart(featuredPacks[0])}
-                                className="px-8 h-16 bg-white text-gray-900 rounded-2xl font-bold uppercase tracking-widest transition-all flex items-center gap-3 hover:bg-orange-500 hover:text-white"
-                            >
-                                <ShoppingCart className="w-5 h-5" /> Order Now • ₹{featuredPacks[0].price}
-                            </button>
-                        </div>
-                    </div>
-                </section>
-            )}
+        <div className="min-h-screen bg-white pb-20 pt-10 px-6">
+            <div className="max-w-7xl mx-auto space-y-12">
 
-            {/* Builder CTA */}
-            <section className="bg-orange-50 rounded-[3rem] p-12 md:p-20 flex flex-col md:flex-row items-center justify-between gap-12 border border-orange-100">
-                <div className="space-y-6 text-center md:text-left">
-                    <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-orange-100 mx-auto md:mx-0">
-                        <ChefHat className="w-8 h-8 text-orange-500" />
-                    </div>
-                    <h2 className="text-4xl md:text-5xl font-bold text-gray-900 tracking-tight">Your Kitchen, Your <span className="text-orange-500">Rules.</span></h2>
-                    <p className="text-gray-600 text-lg font-medium max-w-lg">
-                        Access our artisanal pantry of 50+ ingredients and build a pizza that defines you.
+                {/* Header */}
+                <div className="text-center space-y-4">
+                    <motion.h1
+                        initial={{ opacity: 0, y: -20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="text-5xl font-extrabold text-gray-900 tracking-tight"
+                    >
+                        Our <span className="text-orange-500">Menu</span>
+                    </motion.h1>
+                    <p className="text-gray-500 max-w-lg mx-auto text-lg">
+                        Choose from our chef's curated selection or build your own custom masterpiece.
                     </p>
                 </div>
-                <button
-                    onClick={() => navigate('/builder')}
-                    className="px-12 h-20 bg-gray-900 text-white rounded-[2rem] font-bold text-xl uppercase tracking-widest transition-all flex items-center gap-4 hover:bg-orange-500 shadow-xl"
-                >
-                    Start Building <ArrowRight className="w-6 h-6" />
-                </button>
-            </section>
 
-            {/* Menu Grid */}
-            <section className="space-y-12">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-8 border-b pb-10">
-                    <div>
-                        <h3 className="text-4xl font-bold text-gray-900 tracking-tight">The Signature Selection</h3>
-                        <p className="text-gray-500 font-medium mt-1">Curated by our masters for the ultimate flavor profile.</p>
-                    </div>
-                    <div className="flex gap-2 overflow-x-auto pb-2">
-                        {[{ id: 'ALL', label: 'All' }, ...CATEGORIES].map(cat => (
-                            <button
-                                key={cat.id}
-                                onClick={() => setSelectedCategory(cat.id)}
-                                className={cn(
-                                    "px-6 py-2.5 rounded-full text-xs font-bold uppercase tracking-widest transition-all whitespace-nowrap",
-                                    selectedCategory === cat.id ? "bg-orange-500 text-white" : "bg-gray-100 text-gray-500 hover:bg-gray-200"
-                                )}
-                            >
-                                {cat.label}
-                            </button>
-                        ))}
-                    </div>
-                </div>
+                {/* FIX: Featured Banner MOVED ABOVE categories and VISIBLE ALWAYS */}
+                {featuredPack && (
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="relative rounded-[2.5rem] overflow-hidden bg-orange-500 text-white shadow-2xl items-center grid grid-cols-1 md:grid-cols-2"
+                    >
+                        <div className="p-12 space-y-6 relative z-10">
+                            <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
+                                <Star className="w-3 h-3 fill-current" /> Featured Pick
+                            </div>
+                            <h2 className="text-4xl md:text-5xl font-bold leading-none">{featuredPack.name}</h2>
+                            <p className="text-orange-100 text-lg font-medium line-clamp-2">{featuredPack.description}</p>
+                            <div className="pt-4 flex gap-4">
+                                <button
+                                    onClick={(e) => handleAddToCart(featuredPack, e)}
+                                    className="bg-white text-orange-600 px-8 py-4 rounded-xl font-bold hover:bg-orange-50 transition-colors shadow-lg"
+                                >
+                                    Add for ₹{featuredPack.price}
+                                </button>
+                                <button
+                                    onClick={() => navigate('/builder', { state: { pack: featuredPack } })}
+                                    className="px-6 py-4 rounded-xl font-bold border-2 border-white/30 hover:bg-white/10 transition-colors"
+                                >
+                                    Customize
+                                </button>
+                            </div>
+                        </div>
+                        <div className="h-64 md:h-full min-h-[300px] relative">
+                            <img src={featuredPack.image?.url} className="absolute inset-0 w-full h-full object-cover" alt="Featured" />
+                            <div className="absolute inset-0 bg-gradient-to-r from-orange-500 via-transparent to-transparent md:bg-gradient-to-l" />
+                        </div>
+                    </motion.div>
+                )}
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
-                    {filteredPacks.map((pack) => (
-                        <motion.div
-                            key={pack._id}
-                            initial={{ opacity: 0, y: 20 }}
-                            whileInView={{ opacity: 1, y: 0 }}
-                            viewport={{ once: true }}
-                            className="group flex flex-col bg-white rounded-[2.5rem] border hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 overflow-hidden"
+                {/* Categories */}
+                <div className="flex justify-center flex-wrap gap-2 sticky top-4 z-30 py-4 bg-white/80 backdrop-blur-md rounded-full max-w-fit mx-auto px-6 border border-gray-100 shadow-sm">
+                    {CATEGORIES.map(cat => (
+                        <button
+                            key={cat.id}
+                            onClick={() => setSelectedCategory(cat.id)}
+                            className={cn(
+                                "relative px-6 py-2.5 rounded-full text-sm font-bold transition-colors z-10",
+                                selectedCategory === cat.id ? "text-white" : "text-gray-500 hover:text-gray-900"
+                            )}
                         >
-                            <div className="relative h-64 overflow-hidden">
-                                <img src={pack.image?.url} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={pack.name} />
-                                <div className="absolute top-6 right-6">
-                                    <span className="px-3 py-1 bg-white/90 backdrop-blur-md rounded-full text-[10px] font-bold text-gray-900 uppercase tracking-widest shadow-sm">
-                                        {pack.category}
-                                    </span>
-                                </div>
-                            </div>
-                            <div className="p-8 space-y-6 flex flex-col flex-grow">
-                                <div className="flex justify-between items-start">
-                                    <h4 className="text-2xl font-bold text-gray-900 leading-tight">{pack.name}</h4>
-                                    <span className="text-xl font-bold text-orange-600">₹{pack.price}</span>
-                                </div>
-                                <p className="text-gray-500 text-sm font-medium line-clamp-2 leading-relaxed">
-                                    {pack.description}
-                                </p>
-                                <div className="flex gap-3 pt-2">
-                                    <button
-                                        onClick={() => handleAddToCart(pack)}
-                                        className="flex-1 h-14 bg-gray-900 text-white rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-orange-500 transition-colors"
-                                    >
-                                        Add to Cart
-                                    </button>
-                                    <button
-                                        onClick={() => navigate('/builder', { state: { pack } })}
-                                        className="w-14 h-14 border rounded-2xl flex items-center justify-center text-gray-400 hover:text-orange-500 hover:border-orange-500 transition-all"
-                                    >
-                                        <Edit3 className="w-5 h-5" />
-                                    </button>
-                                </div>
-                            </div>
-                        </motion.div>
+                            {selectedCategory === cat.id && (
+                                <motion.div
+                                    layoutId="activeCategory"
+                                    className="absolute inset-0 bg-gray-900 rounded-full -z-10"
+                                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                                />
+                            )}
+                            {cat.label}
+                        </button>
                     ))}
                 </div>
-            </section>
+
+                {/* Pizza Grid */}
+                <motion.div
+                    layout
+                    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8"
+                >
+                    <AnimatePresence mode='popLayout'>
+                        {filteredPacks.map((pack) => (
+                            <motion.div
+                                layout
+                                key={pack._id}
+                                initial={{ opacity: 0, scale: 0.9 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.9 }}
+                                transition={{ duration: 0.2 }}
+                                className="group bg-white rounded-[2rem] p-4 shadow-lg hover:shadow-2xl transition-all border border-gray-100/50 hover:border-orange-100 flex flex-col"
+                            >
+                                {/* Image Area */}
+                                <div
+                                    className="relative h-52 rounded-[1.5rem] overflow-hidden cursor-pointer"
+                                    onClick={() => navigate('/builder', { state: { pack } })}
+                                >
+                                    <img
+                                        src={pack.image?.url}
+                                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                                        alt={pack.name}
+                                    />
+                                    <div className="absolute top-3 right-3">
+                                        <span className="bg-white/90 backdrop-blur text-xs font-bold px-3 py-1.5 rounded-full shadow-sm text-gray-900 border border-gray-100">
+                                            ₹{pack.price}
+                                        </span>
+                                    </div>
+                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                        <span className="text-white font-bold tracking-widest uppercase text-xs border border-white px-4 py-2 rounded-full">Customize</span>
+                                    </div>
+                                </div>
+
+                                <div className="pt-4 px-2 space-y-3 flex-grow flex flex-col">
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            <h3 className="font-bold text-lg text-gray-900 leading-tight line-clamp-1" title={pack.name}>{pack.name}</h3>
+                                            <p className="text-xs text-gray-500 font-medium mt-1 uppercase tracking-wide">{pack.category}</p>
+                                        </div>
+                                    </div>
+                                    <p className="text-gray-500 text-sm leading-relaxed line-clamp-2 flex-grow">
+                                        {pack.description}
+                                    </p>
+
+                                    <button
+                                        onClick={(e) => handleAddToCart(pack, e)}
+                                        className="w-full bg-gray-100 hover:bg-gray-900 hover:text-white text-gray-900 font-bold py-3 rounded-xl transition-all flex items-center justify-center gap-2 group/btn"
+                                    >
+                                        <Plus className="w-4 h-4" />
+                                        <span>Add to Cart</span>
+                                    </button>
+                                </div>
+                            </motion.div>
+                        ))}
+                    </AnimatePresence>
+                </motion.div>
+
+                {/* Builder CTA */}
+                <div onClick={() => navigate('/builder')} className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-[2.5rem] p-12 text-center text-white relative overflow-hidden cursor-pointer group">
+                    <div className="absolute inset-0 bg-grid-white/[0.05] -z-0" />
+                    <div className="relative z-10 space-y-6">
+                        <Edit3 className="w-12 h-12 mx-auto text-orange-500 group-hover:rotate-12 transition-transform" />
+                        <h2 className="text-3xl font-bold">Don't see what you like?</h2>
+                        <p className="text-gray-400 max-w-lg mx-auto">Use our custom builder to create your own pizza from scratch with over 50+ fresh ingredients.</p>
+                        <span className="inline-block bg-white text-gray-900 px-8 py-3 rounded-full font-bold uppercase tracking-widest text-sm hover:bg-orange-500 hover:text-white transition-colors">
+                            Launch Builder
+                        </span>
+                    </div>
+                </div>
+
+            </div>
         </div>
     );
 };
